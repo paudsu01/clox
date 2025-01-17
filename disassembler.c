@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "disassembler.h"
 
+static void handleConstantInstruction(Chunk*,int);
 
 void disassembleChunk(Chunk* chunk, char name[]){
 	printf("=== %s ===\n", name);
@@ -16,7 +17,9 @@ void disassembleChunk(Chunk* chunk, char name[]){
 
 int disassembleInstruction(Chunk* chunk, int index){
 	uint8_t instruction_byte = *((chunk->code)+index);
-	printf("%04d\t", index);
+	int linenumber = *((chunk->lines)+index);
+
+	printf("%04d\tLine:%04d\t", index, linenumber);
 	switch (instruction_byte){
 		case OP_RETURN:
 			printf("OP_RETURN\n");

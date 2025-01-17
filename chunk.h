@@ -15,13 +15,14 @@ typedef struct{
 	int capacity;
 	int count;
 	uint8_t *code;		
+	int *lines;		
 	ValueArray constants;
 } Chunk;
 
 // function prototypes
 void initChunk(Chunk*);
 void freeChunk(Chunk*);
-void addCode(Chunk*, uint8_t);
+void addCode(Chunk*, uint8_t, int);
 int addConstant(Chunk*, Value);
 
 #endif
