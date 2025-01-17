@@ -7,13 +7,13 @@ typedef double Value;
 typedef struct{
 	int count;
 	int capacity;
-	Value* constants;
+	Value* values;
 } ValueArray;
 
 // function prototypes
 //
 void initValueArray(ValueArray*);
-int appendValue(ValueArray*, Value);
+void appendValue(ValueArray*, Value);
 void freeValueArray(ValueArray*);
 
 #endif

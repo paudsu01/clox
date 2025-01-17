@@ -2,6 +2,7 @@
 #define CHUNK_H
 
 #include "common.h"
+#include "value.h"
 
 // Enum
 typedef enum {
@@ -14,11 +15,13 @@ typedef struct{
 	int capacity;
 	int count;
 	uint8_t *code;		
+	ValueArray constants;
 } Chunk;
 
 // function prototypes
 void initChunk(Chunk*);
 void freeChunk(Chunk*);
 void addCode(Chunk*, uint8_t);
+int addConstant(Chunk*, Value);
 
 #endif

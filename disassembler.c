@@ -23,8 +23,9 @@ int disassembleInstruction(Chunk* chunk, int index){
 			break;
 
 		case OP_CONSTANT:
-			printf("OP_CONSTANT\n");
+			printf("OP_CONSTANT\t");
 			index++;
+			handleConstantInstruction(chunk, index);
 			break;
 
 		default:
@@ -33,4 +34,10 @@ int disassembleInstruction(Chunk* chunk, int index){
 
 	}
 	return index+1;
+}
+
+static void handleConstantInstruction(Chunk* chunk, int index){
+	uint8_t offset = *((chunk->code)+index);
+	Value value = *(((chunk->constants).values) + offset);
+	printf("%lf\n", value);
 }
