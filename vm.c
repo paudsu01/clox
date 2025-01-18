@@ -13,12 +13,13 @@ InterpreterResult interpret(Chunk* chunk){
 
 	#define READ_BYTE() *(vm.ip++)
 	#define READ_CONSTANT() (vm.chunk->constants).values[READ_BYTE()]
+	#define BYTES_LEFT_TO_EXECUTE() (vm.ip <= (vm.chunk->code + vm.chunk->count))
 
 	vm.chunk = chunk;
 	vm.ip = (vm.chunk)->code;
 	
 	Value value;
-	for (int instruction_index=0; instruction_index < chunk->count; instruction_index++){
+	while (BYTES_LEFT_TO_EXECUTE()){
 		
 		uint8_t byte = READ_BYTE();
 		switch (byte){
@@ -27,7 +28,6 @@ InterpreterResult interpret(Chunk* chunk){
 			case OP_CONSTANT:
 				value = READ_CONSTANT();
 				printf("%lf\n", value);
-				instruction_index++;
 				break;
 		}
 	}
@@ -35,6 +35,7 @@ InterpreterResult interpret(Chunk* chunk){
 
 	#undef READ_BYTE
 	#undef READ_CONSTANT
+	#undef BYTES_LEFT_TO_EXECUTE
 }
 
 void freeVM(){
