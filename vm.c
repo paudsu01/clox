@@ -1,6 +1,8 @@
 #include "vm.h"
+#include "compiler.h"
 #include "disassembler.h"
-#include "stdio.h"
+
+#include <stdio.h>
 
 VM vm;
 
@@ -10,11 +12,10 @@ void initVM(){
 	resetStack();
 }
 
-InterpreterResult interpret(Chunk* chunk){
+InterpreterResult interpret(const char* source){
 
-	vm.chunk = chunk;
-	vm.ip = (vm.chunk)->code;
-	return runVM();
+	compile(source);
+	return NO_ERROR;
 }
 
 InterpreterResult runVM(){
