@@ -23,6 +23,7 @@ void initVM();
 void freeVM();
 
 InterpreterResult interpret(Chunk*);
+InterpreterResult runVM();
 
 void push(Value value);
 Value pop();

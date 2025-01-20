@@ -12,6 +12,13 @@ void initVM(){
 
 InterpreterResult interpret(Chunk* chunk){
 
+	vm.chunk = chunk;
+	vm.ip = (vm.chunk)->code;
+	return runVM();
+}
+
+InterpreterResult runVM(){
+	
 	#define READ_BYTE() *(vm.ip++)
 	#define READ_CONSTANT() (vm.chunk->constants).values[READ_BYTE()]
 
@@ -23,9 +30,6 @@ InterpreterResult interpret(Chunk* chunk){
 			} while (false)
 		
 
-	vm.chunk = chunk;
-	vm.ip = (vm.chunk)->code;
-	
 	Value value;
 	while (BYTES_LEFT_TO_EXECUTE()){
 		
