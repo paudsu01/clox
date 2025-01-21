@@ -7,10 +7,17 @@ extern Scanner scanner;
 
 // static function prototypes
 static char peekChar();
+static char peekNextChar();
 static char consumeChar();
 static void consumeLine();
+static bool matchChar(char);
+
+static bool isDigit(char);
 static bool isAtEnd();
+
 static Token makeToken(TokenType);
+static Token makeNumberToken();
+static Token makeStringToken();
 static Token makeErrorToken(char*);
 
 
@@ -24,7 +31,7 @@ void initScanner(char* source){
 
 Token scanToken(){
 	
-	// Readjust pointers
+	// Re-adjust pointers
 	scanner.start = scanner.current;
 
 	while (true){
@@ -57,12 +64,18 @@ Token scanToken(){
 				else return makeToken(TOKEN_SLASH);
 			
 			case '>':
-				break;
+				return (matchChar('=')) ? makeToken(TOKEN_LESS_EQUAL) : makeToken(TOKEN_LESS);
 			case '<':
-				break;
+				return (matchChar('=')) ? makeToken(TOKEN_GREATER_EQUAL) : makeToken(TOKEN_GREATER);
 			case '=':
-				break;
+				return (matchChar('=')) ? makeToken(TOKEN_EQUAL_EQUAL) : makeToken(TOKEN_EQUAL);
 			case '!':
+				return (matchChar('=')) ? makeToken(TOKEN_BANG_EQUAL) : makeToken(TOKEN_BANG);
+
+			case '"':
+				return makeStringToken();// string constant
+			default:
+				if (isDigit(c)) return makeNumberToken();// number constant
 				break;
 
 
@@ -83,8 +96,24 @@ static char peekChar(){
 	return *(scanner.current);
 }
 
+static char peekNextChar(){
+	return (isAtEnd()) ? '\0' : *(scanner.current+1);
+}
+
 static void consumeLine(){
 	while (consumeChar() != '\n') {};
+}
+
+static bool matchChar(char c){
+	if (peekChar() == c){
+		consumeChar();
+		return true;
+	}
+	return false;
+}
+
+static bool isDigit(char c){
+	return (c >= '0') && (c <= '9');
 }
 
 static bool isAtEnd(){
@@ -101,6 +130,36 @@ static Token makeToken(TokenType type){
 	token.line = scanner.line;
 	token.length = scanner.current - scanner.start;
 	return token;
+}
+
+
+static Token makeStringToken(){
+	while (!isAtEnd() && peekChar() != '"'){
+		if (peekChar() == '\n') scanner.line++;
+		consumeChar();
+	}
+	if (isAtEnd()) return makeErrorToken("Unterminated String");
+	// consume the '"' char
+	consumeChar();
+	return makeToken(TOKEN_STRING);
+}
+
+static Token makeNumberToken(){
+	
+	while (isDigit(peekChar())) {
+		consumeChar();	
+	}
+
+	if (peekChar() == '.' && isDigit(peekNextChar())){
+		
+		// consume the '.'
+		consumeChar();	
+		while (isDigit(peekChar())) {
+			consumeChar();	
+		}
+	}
+
+	return makeToken(TOKEN_NUMBER);
 }
 
 static Token makeErrorToken(char* message){
