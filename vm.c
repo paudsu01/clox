@@ -1,6 +1,8 @@
 #include "vm.h"
+#include "compiler.h"
 #include "disassembler.h"
-#include "stdio.h"
+
+#include <stdio.h>
 
 VM vm;
 
@@ -10,8 +12,14 @@ void initVM(){
 	resetStack();
 }
 
-InterpreterResult interpret(Chunk* chunk){
+InterpreterResult interpret(const char* source){
 
+	compile(source);
+	return NO_ERROR;
+}
+
+InterpreterResult runVM(){
+	
 	#define READ_BYTE() *(vm.ip++)
 	#define READ_CONSTANT() (vm.chunk->constants).values[READ_BYTE()]
 
@@ -23,9 +31,6 @@ InterpreterResult interpret(Chunk* chunk){
 			} while (false)
 		
 
-	vm.chunk = chunk;
-	vm.ip = (vm.chunk)->code;
-	
 	Value value;
 	while (BYTES_LEFT_TO_EXECUTE()){
 		
