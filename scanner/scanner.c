@@ -1,6 +1,7 @@
 #include "scanner.h"
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 
 extern Scanner scanner;
@@ -11,6 +12,8 @@ static char peekNextChar();
 static char consumeChar();
 static void consumeLine();
 static bool matchChar(char);
+
+static Token checkKeyword(char*, int, TokenType);
 
 static bool isDigit(char);
 static bool isAlpha(char);
@@ -127,6 +130,12 @@ static bool isAtEnd(){
 	return *(scanner.current) == '\0';
 }
 
+static Token checkKeyword(char* remainingString, int startIndex, TokenType type){
+	if ((scanner.current - scanner.start) == (strlen(remainingString)) && (memcmp(remainingString, scanner.start + startIndex, strlen(remainingString)) == 0))
+		return makeToken(type);
+	return makeToken(TOKEN_IDENTIFIER);
+}
+
 // Helper static functions with tokens
 
 static Token makeToken(TokenType type){
@@ -142,6 +151,37 @@ static Token makeToken(TokenType type){
 
 static Token makeIdentifierToken(){
 	while (isAlpha(peekChar()) || isDigit(peekChar())) consumeChar();
+	switch (*(scanner.start)){
+		case 'a': return checkKeyword("nd", 1, TOKEN_AND);
+		case 'c': return checkKeyword("lass", 1, TOKEN_CLASS);
+		case 'e': return checkKeyword("lse", 1, TOKEN_ELSE);
+		case 'f':
+			  if ((scanner.current - scanner.start) > 1){
+				  switch (scanner.start[1]){
+					  case 'a': return checkKeyword("lse", 2, TOKEN_FALSE);
+					  case 'o': return checkKeyword("r", 2, TOKEN_FOR);
+					  case 'u': return checkKeyword("n", 2, TOKEN_FUN);
+				  }
+			  }
+			  break;
+
+		case 'i': return checkKeyword("f", 1, TOKEN_IF);
+		case 'n': return checkKeyword("il", 1, TOKEN_NIL);
+		case 'o': return checkKeyword("r", 1, TOKEN_OR);
+		case 'p': return checkKeyword("rint", 1, TOKEN_PRINT);
+		case 'r': return checkKeyword("eturn", 1, TOKEN_RETURN);
+		case 's': return checkKeyword("uper", 1, TOKEN_SUPER);
+		case 't':
+			  if ((scanner.current - scanner.start) > 1){
+				  switch (scanner.start[1]){
+					  case 'h': return checkKeyword("is", 2, TOKEN_THIS);
+					  case 'r': return checkKeyword("ue", 2, TOKEN_TRUE);
+				  }
+			  }
+			  break;
+		case 'v': return checkKeyword("ar", 1, TOKEN_VAR);
+		case 'w': return checkKeyword("hile", 1, TOKEN_WHILE);
+	}
 	return makeToken(TOKEN_IDENTIFIER);
 }
 
