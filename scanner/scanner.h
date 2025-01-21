@@ -4,15 +4,15 @@
 #include "token.h"
 
 typedef struct {
-	char* start;
-	char* current;
+	const char* start;
+	const char* current;
 	int line;
 } Scanner;
 
 Scanner scanner;
 
 // prototypes
-void initScanner(char*);
+void initScanner(const char*);
 Token scanToken();
 
 #endif

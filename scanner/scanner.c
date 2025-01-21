@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 
 extern Scanner scanner;
@@ -26,7 +27,7 @@ static Token makeStringToken();
 static Token makeErrorToken(char*);
 
 
-void initScanner(char* source){
+void initScanner(const char* source){
 
 	scanner.line = 1;
 	scanner.start = source;
@@ -35,11 +36,11 @@ void initScanner(char* source){
 }
 
 Token scanToken(){
-	
-	// Re-adjust pointers
-	scanner.start = scanner.current;
 
 	while (true){
+		// Re-adjust pointers
+		scanner.start = scanner.current;
+
 		// Check if EOF
 		if (isAtEnd()) return makeToken(TOKEN_EOF);
 		char c = consumeChar();
@@ -82,12 +83,11 @@ Token scanToken(){
 			default:
 				if (isDigit(c)) return makeNumberToken();// number constant
 				else if (isAlpha(c)) return makeIdentifierToken();
-				break;
+				else return makeErrorToken("Unrecognized character");
 
 		}
 	}
 		
-	return makeErrorToken("Unrecognized character");
 }
 
 // Helper static functions
@@ -131,7 +131,7 @@ static bool isAtEnd(){
 }
 
 static Token checkKeyword(char* remainingString, int startIndex, TokenType type){
-	if ((scanner.current - scanner.start) == (strlen(remainingString)) && (memcmp(remainingString, scanner.start + startIndex, strlen(remainingString)) == 0))
+	if ((scanner.current - scanner.start) == (strlen(remainingString) + startIndex) && (memcmp(remainingString, scanner.start + startIndex, strlen(remainingString)) == 0))
 		return makeToken(type);
 	return makeToken(TOKEN_IDENTIFIER);
 }
@@ -144,7 +144,7 @@ static Token makeToken(TokenType type){
 	token.type = type;
 	token.start = scanner.start;
 	token.line = scanner.line;
-	token.length = scanner.current - scanner.start;
+	token.length = (type == TOKEN_EOF) ? 0 : scanner.current - scanner.start;
 	return token;
 }
 
