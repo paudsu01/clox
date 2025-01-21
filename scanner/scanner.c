@@ -13,10 +13,12 @@ static void consumeLine();
 static bool matchChar(char);
 
 static bool isDigit(char);
+static bool isAlpha(char);
 static bool isAtEnd();
 
 static Token makeToken(TokenType);
 static Token makeNumberToken();
+static Token makeIdentifierToken();
 static Token makeStringToken();
 static Token makeErrorToken(char*);
 
@@ -76,9 +78,8 @@ Token scanToken(){
 				return makeStringToken();// string constant
 			default:
 				if (isDigit(c)) return makeNumberToken();// number constant
+				else if (isAlpha(c)) return makeIdentifierToken();
 				break;
-
-
 
 		}
 	}
@@ -116,6 +117,12 @@ static bool isDigit(char c){
 	return (c >= '0') && (c <= '9');
 }
 
+static bool isAlpha(char c){
+	return (c >= 'a' && c <= 'z') ||
+		(c >= 'A' && c <= 'Z') ||
+		c == '_';
+}
+
 static bool isAtEnd(){
 	return *(scanner.current) == '\0';
 }
@@ -132,6 +139,11 @@ static Token makeToken(TokenType type){
 	return token;
 }
 
+
+static Token makeIdentifierToken(){
+	while (isAlpha(peekChar()) || isDigit(peekChar())) consumeChar();
+	return makeToken(TOKEN_IDENTIFIER);
+}
 
 static Token makeStringToken(){
 	while (!isAtEnd() && peekChar() != '"'){
