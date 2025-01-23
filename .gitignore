@@ -1,2 +1,4 @@
+*.lox
 **.swp
 **.out
+prattParsing/
