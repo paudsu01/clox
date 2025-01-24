@@ -29,6 +29,7 @@ static void errorAtPreviousToken(const char*);
 static void error(Token, const char*);
 
 // pratt parsing functions
+static ParseRow* getParseRow(TokenType);
 static void parseExpression();
 static void parsePrecedence(Precedence);
 static void parseBinary();
@@ -125,6 +126,32 @@ static void parseUnary(){
 	}
 }
 
+static ParseRow* getParseRow(TokenType type){
+	return &(rules[type]);
+}
+
+static void parseBinary(){
+	TokenType type = parser.previousToken.type;
+	ParseRow* parseRow = getParseRow(type);	
+	parsePrecedence((Precedence) (parseRow->level+1));
+
+	switch (type){
+		case TOKEN_PLUS:
+			emitByte(OP_ADD);
+			break;	
+		case TOKEN_MINUS:
+			emitByte(OP_SUBTRACT);
+			break;	
+		case TOKEN_STAR:
+			emitByte(OP_MULTIPLY);
+			break;	
+		case TOKEN_SLASH:
+			emitByte(OP_DIVIDE);
+			break;	
+		default:
+			break;
+	};
+}
 // Token handling functions
 
 static void advanceToken(){
