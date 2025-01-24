@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "../common.h"
 
 #include "compiler.h"
@@ -10,7 +11,6 @@ Chunk* compilingChunk;
 
 // Function prototypes
 
-static void parseExpression();
 static void consumeToken(TokenType, char*);
 static void advanceToken();
 
@@ -20,6 +20,7 @@ static void emitByte(uint8_t);
 static void emitBytes(uint8_t, uint8_t);
 static void endCompiler();
 static void emitReturn();
+static void emitConstant(double);
 static Chunk* currentChunk();
 
 // Error handling function prototypes
@@ -28,52 +29,54 @@ static void errorAtPreviousToken(const char*);
 static void error(Token, const char*);
 
 // pratt parsing functions
-static void binary();
-static void unary();
-static void number();
-static void grouping();
+static void parseExpression();
+static void parsePrecedence(Precedence);
+static void parseBinary();
+static void parseUnary();
+static void parseNumber();
+static void parseGrouping();
 
 ParseRow rules[] = {
-  [TOKEN_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
-  [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, 
-  [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_DOT]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
-  [TOKEN_PLUS]          = {NULL,     binary, PREC_TERM},
-  [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_SLASH]         = {NULL,     binary, PREC_FACTOR},
-  [TOKEN_STAR]          = {NULL,     binary, PREC_FACTOR},
-  [TOKEN_BANG]          = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_BANG_EQUAL]    = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_EQUAL]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_EQUAL_EQUAL]   = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_GREATER]       = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_GREATER_EQUAL] = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_LESS]          = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_LESS_EQUAL]    = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_IDENTIFIER]    = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_STRING]        = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
-  [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_FALSE]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_NIL]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_TRUE]          = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_LEFT_PAREN]    = {parseGrouping,    NULL,	   PREC_NONE},	
+  [TOKEN_RIGHT_PAREN]   = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_LEFT_BRACE]    = {NULL,	     NULL,	   PREC_NONE},	 
+  [TOKEN_RIGHT_BRACE]   = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_COMMA]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_DOT]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_MINUS]         = {parseUnary,	     parseBinary,  PREC_TERM},	
+  [TOKEN_PLUS]          = {NULL,	     parseBinary,  PREC_TERM},	
+  [TOKEN_SEMICOLON]     = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_SLASH]         = {NULL,	     parseBinary,  PREC_FACTOR},	
+  [TOKEN_STAR]          = {NULL,	     parseBinary,  PREC_FACTOR},	
+  [TOKEN_BANG]          = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_BANG_EQUAL]    = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_EQUAL]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_EQUAL_EQUAL]   = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_GREATER]       = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_GREATER_EQUAL] = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_LESS]          = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_LESS_EQUAL]    = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_IDENTIFIER]    = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_STRING]        = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_NUMBER]        = {parseNumber,	     NULL,	   PREC_NONE},	
+  [TOKEN_AND]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_CLASS]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_ELSE]          = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_FALSE]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_FOR]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_FUN]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_IF]            = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_NIL]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_OR]            = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_PRINT]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_RETURN]        = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_SUPER]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_THIS]          = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_TRUE]          = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_VAR]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_WHILE]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_ERROR]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_EOF]           = {NULL,	     NULL,	   PREC_NONE},	
 };
 
 bool compile(const char* source, Chunk* chunk){
@@ -89,9 +92,40 @@ bool compile(const char* source, Chunk* chunk){
 	return !parser.hadError;
 }
 
-static void parseExpression(){
+// PrattParsing functions
 
+static void parseExpression(){
+	parsePrecedence(PREC_ASSIGN);
 }
+
+static void parseGrouping(){
+	parseExpression();
+	consumeToken(TOKEN_RIGHT_PAREN, "'(' expected");
+}
+
+static void parseNumber(){
+	double value = strtod(parser.previousToken.start, NULL);
+	emitConstant(value);
+}
+
+static void parseUnary(){
+	TokenType tokenType = parser.previousToken.type;
+	parsePrecedence(PREC_UNARY);
+
+	switch(tokenType){
+		case TOKEN_MINUS:
+			emitByte(OP_NEGATE);
+			break;
+		case TOKEN_PLUS:
+			// do nothing
+			break;
+		default:
+			break;
+			// unreachable	
+	}
+}
+
+// Token handling functions
 
 static void advanceToken(){
 	parser.previousToken = parser.currentToken;
@@ -122,6 +156,17 @@ static void emitBytes(uint8_t byte1, uint8_t byte2){
 	emitByte(byte1);
 	emitByte(byte2);
 
+}
+
+static void emitConstant(double value){
+	emitByte(OP_CONSTANT);
+	int index = addConstant(currentChunk(), value);
+	if (index > UINT8_MAX){
+		// error
+		errorAtPreviousToken("Too many constants in one chunk");
+		index=0;
+	}
+	emitByte((uint8_t) index);
 }
 
 static void endCompiler(){
