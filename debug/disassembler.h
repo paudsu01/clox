@@ -1,7 +1,7 @@
 #ifndef DISASSEMBLER_H
 #define DISASSEMBLER_H
 
-#include "chunk.h"
+#include "../vm/chunk.h"
 
 // function prototypes
 void disassembleChunk(Chunk*, char[]);

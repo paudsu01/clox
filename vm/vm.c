@@ -1,6 +1,6 @@
 #include "vm.h"
-#include "compiler.h"
-#include "disassembler.h"
+#include "../compiler/compiler.h"
+#include "../debug/disassembler.h"
 
 #include <stdio.h>
 

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "disassembler.h"
-#include "vm.h"
+#include "../vm/vm.h"
 
 static void handleConstantInstruction(Chunk*,int);
 

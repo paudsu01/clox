@@ -1,7 +1,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "common.h"
+#include "../common.h"
 #define GROW_CAPACITY(capacity) \
 	((capacity < 8) ? 8: capacity*2)
 

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "vm.h"
+#include "vm/vm.h"
 
 #define DEBUG_CHUNK
 
