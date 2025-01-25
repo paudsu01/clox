@@ -3,8 +3,11 @@
 #include "../common.h"
 
 #include "compiler.h"
-#include "../vm/vm.h"
 #include "../scanner/scanner.h"
+
+#ifdef DEBUG_PRINT_CODE
+#include "../debug/disassembler.h"
+#endif
 
 // Variables
 Chunk* compilingChunk;
@@ -90,6 +93,7 @@ bool compile(const char* source, Chunk* chunk){
 	parseExpression();
 
 	consumeToken(TOKEN_EOF, "Expect end of expression");
+	endCompiler();
 	return !parser.hadError;
 }
 
@@ -212,6 +216,10 @@ static void emitConstant(double value){
 
 static void endCompiler(){
 	emitReturn();
+
+	#ifdef DEBUG_PRINT_CODE
+	if (!parser.hadError) disassembleChunk(currentChunk(), "Compiled code");
+	#endif
 }
 
 static void emitReturn(){
