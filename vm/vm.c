@@ -1,6 +1,6 @@
 #include "vm.h"
-#include "compiler.h"
-#include "disassembler.h"
+#include "../compiler/compiler.h"
+#include "../debug/disassembler.h"
 
 #include <stdio.h>
 
@@ -14,8 +14,23 @@ void initVM(){
 
 InterpreterResult interpret(const char* source){
 
-	compile(source);
-	return NO_ERROR;
+	Chunk chunk;
+	initChunk(&chunk);
+
+	if (!compile(source, &chunk)){
+		freeChunk(&chunk);
+		return COMPILE_ERROR;
+	}
+
+	else {
+		vm.chunk = &chunk;
+		vm.ip = vm.chunk->code;
+
+		InterpreterResult result = runVM();
+
+		freeChunk(&chunk);
+		return result;
+	}
 }
 
 InterpreterResult runVM(){

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "disassembler.h"
-#include "vm.h"
+#include "../vm/vm.h"
 
 static void handleConstantInstruction(Chunk*,int);
 
@@ -64,7 +64,7 @@ void disassembleVMStack(){
 	printf("VM Stack: [\t");
 	int index = 0;
 	while ((vm.stack + index) < vm.stackpointer){
-		printf("%lf", vm.stack[index++]);
+		printf("%.3lf, ", vm.stack[index++]);
 	}
 	printf("\t]\n");
 }
