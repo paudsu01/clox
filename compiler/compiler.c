@@ -86,6 +86,7 @@ bool compile(const char* source, Chunk* chunk){
 	compilingChunk = chunk;
 
 	initScanner(source);
+	advanceToken();
 	parseExpression();
 
 	consumeToken(TOKEN_EOF, "Expect end of expression");
@@ -160,7 +161,7 @@ static void parsePrecedence(Precedence precedence){
 
 	while (getParseRow(parser.currentToken.type)->level >= precedence){
 		advanceToken();
-		parseFn infix = (getParseRow(token.type))->infixFunction;
+		parseFn infix = (getParseRow(parser.previousToken.type))->infixFunction;
 		(*infix)();
 	}
 
