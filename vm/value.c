@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "value.h"
 #include "memory.h"
 
@@ -23,4 +24,8 @@ void appendValue(ValueArray* array, Value value){
 void freeValueArray(ValueArray* array){
 	FREE_ARRAY(Value, array->values, array->capacity);
 	initValueArray(array);
+}
+
+void printValue(Value value){
+	printf("%lf", AS_NUM(value));
 }

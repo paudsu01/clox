@@ -41,9 +41,16 @@ InterpreterResult runVM(){
 	#define BYTES_LEFT_TO_EXECUTE() (vm.ip < (vm.chunk->code + vm.chunk->count))
 
 	#define BINARY_OP(op) \
-			do { Value b = pop(); Value a=pop(); \
-			  push(a op b); \
-			} while (false)
+			do { 	Value b = peek(0); Value a=peek(1); \
+				if (IS_NUM(b) && IS_NUM(a)){ \
+			 		double c = AS_NUM(pop()); double d=AS_NUM(pop()); \
+			  		push(NUMBER(c op d)); \
+				} \
+				else{ \
+					runtimeError("Operands must be numbers");\
+					return RUNTIME_ERROR;\
+				} \
+			} while (false) \
 		
 
 	Value value;
@@ -57,7 +64,8 @@ InterpreterResult runVM(){
 		uint8_t byte = READ_BYTE();
 		switch (byte){
 			case OP_RETURN:
-				printf("%lf\n", pop());
+				printValue(pop());
+				printf("\n");
 				break;
 
 			case OP_CONSTANT:
@@ -66,7 +74,12 @@ InterpreterResult runVM(){
 				break;
 
 			case OP_NEGATE:
-				push(-pop());
+				if (!(IS_NUM(peek(0)))){
+					runtimeError("Operand must be a number");
+					return RUNTIME_ERROR;
+				} else{
+					push(NUMBER(-AS_NUM(pop())));
+				}
 				break;
 
 			case OP_ADD:
@@ -101,6 +114,11 @@ void freeVM(){
 	initVM();
 }
 
+//Error handling functions
+
+void runtimeError(char* format){
+	//TODO
+}
 
 // stack based functions 
 void push(Value value){
@@ -109,6 +127,10 @@ void push(Value value){
 
 Value pop(){
 	return *(--vm.stackpointer);
+}
+
+Value peek(int depth){
+	return *(vm.stackpointer - depth - 1);
 }
 
 void resetStack(){

@@ -1,6 +1,8 @@
 #ifndef VALUE_H
 #define VALUE_H
 
+#include <stdbool.h>
+
 // enum declaration
 typedef enum{
 	TYPE_NUM,
@@ -27,6 +29,7 @@ typedef struct{
 void initValueArray(ValueArray*);
 void appendValue(ValueArray*, Value);
 void freeValueArray(ValueArray*);
+void printValue(Value value);
 
 
 // Useful macros

@@ -23,7 +23,7 @@ static void emitByte(uint8_t);
 static void emitBytes(uint8_t, uint8_t);
 static void endCompiler();
 static void emitReturn();
-static void emitConstant(double);
+static void emitConstant(Value);
 static Chunk* currentChunk();
 
 // Error handling function prototypes
@@ -110,7 +110,7 @@ static void parseGrouping(){
 
 static void parseNumber(){
 	double value = strtod(parser.previousToken.start, NULL);
-	emitConstant(value);
+	emitConstant(NUMBER(value));
 }
 
 static void parseUnary(){
@@ -203,7 +203,7 @@ static void emitBytes(uint8_t byte1, uint8_t byte2){
 
 }
 
-static void emitConstant(double value){
+static void emitConstant(Value value){
 	emitByte(OP_CONSTANT);
 	int index = addConstant(currentChunk(), value);
 	if (index > UINT8_MAX){
