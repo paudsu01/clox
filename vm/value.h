@@ -29,7 +29,9 @@ typedef struct{
 void initValueArray(ValueArray*);
 void appendValue(ValueArray*, Value);
 void freeValueArray(ValueArray*);
+
 void printValue(Value value);
+bool checkIfValuesEqual(Value,Value);
 
 
 // Useful macros

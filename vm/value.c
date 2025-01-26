@@ -41,3 +41,13 @@ void printValue(Value value){
 			break;
 	}
 }
+
+bool checkIfValuesEqual(Value val1, Value val2){
+	if (val1.type != val2.type) return false;
+	switch (val1.type){
+		case TYPE_NIL: return true;
+		case TYPE_NUM: return AS_NUM(val1) == AS_NUM(val2);
+		case TYPE_BOOL: return AS_BOOL(val1) == AS_BOOL(val2);
+		default: return false;
+	}
+}

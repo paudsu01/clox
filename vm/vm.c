@@ -41,11 +41,11 @@ InterpreterResult runVM(){
 
 	#define BYTES_LEFT_TO_EXECUTE() (vm.ip < (vm.chunk->code + vm.chunk->count))
 
-	#define BINARY_OP(op) \
+	#define BINARY_OP(resultValue, op) \
 			do { 	Value b = peek(0); Value a=peek(1); \
 				if (IS_NUM(b) && IS_NUM(a)){ \
 			 		double c = AS_NUM(pop()); double d=AS_NUM(pop()); \
-			  		push(NUMBER(c op d)); \
+			  		push(resultValue(c op d)); \
 				} \
 				else{ \
 					runtimeError("Operands must be numbers");\
@@ -97,19 +97,31 @@ InterpreterResult runVM(){
 				break;
 
 			case OP_ADD:
-				BINARY_OP(+);
+				BINARY_OP(NUMBER, +);
 				break;
 			
 			case OP_SUBTRACT:
-				BINARY_OP(-);
+				BINARY_OP(NUMBER, -);
 				break;
 
 			case OP_MULTIPLY:
-				BINARY_OP(*);
+				BINARY_OP(NUMBER, *);
 				break;
 
 			case OP_DIVIDE:
-				BINARY_OP(/);
+				BINARY_OP(NUMBER, /);
+				break;
+
+			case OP_GT:
+				BINARY_OP(BOOLEAN, >);
+				break;
+
+			case OP_LT:
+				BINARY_OP(BOOLEAN, <);
+				break;
+
+			case OP_EQUAL:
+				push(BOOLEAN(checkIfValuesEqual(pop(), pop())));
 				break;
 
 			default:
