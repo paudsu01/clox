@@ -3,6 +3,7 @@
 #include "../debug/disassembler.h"
 
 #include <stdio.h>
+#include <stdarg.h>
 
 VM vm;
 
@@ -116,8 +117,17 @@ void freeVM(){
 
 //Error handling functions
 
-void runtimeError(char* format){
-	//TODO
+void runtimeError(char* format, ...){
+	va_list ap;
+	va_start(ap, format);
+	vfprintf(stderr, format, ap);
+	va_end(ap);
+	fprintf(stderr, "\n");
+
+	int index = vm.ip - 1 - vm.chunk->code;
+	int line = vm.chunk->lines[index];
+	fprintf(stderr, "line [%d] in script\n", line);
+	resetStack();
 }
 
 // stack based functions 

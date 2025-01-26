@@ -24,9 +24,9 @@ void freeVM();
 
 InterpreterResult interpret(const char* source);
 InterpreterResult runVM();
-void runtimeError(char*);
+void runtimeError(char*,...);
 
-void push(Value value);
+void push(Value);
 Value pop();
 Value peek(int);
 void resetStack();
