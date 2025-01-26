@@ -92,6 +92,10 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_NOT:
+				push(BOOLEAN(!trueOrFalse(pop())));
+				break;
+
 			case OP_ADD:
 				BINARY_OP(+);
 				break;
@@ -124,8 +128,14 @@ void freeVM(){
 	initVM();
 }
 
-//Error handling functions
+// Helper functions
+bool trueOrFalse(Value val){
+	if (val.type == TYPE_NUM) return true;
+	else if (val.type == TYPE_BOOL) return AS_BOOL(val);
+	return false;
+}
 
+//Error handling functions
 void runtimeError(char* format, ...){
 	va_list ap;
 	va_start(ap, format);

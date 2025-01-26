@@ -16,6 +16,10 @@ typedef enum {
 	OP_TRUE,
 	OP_FALSE,
 	OP_NIL,
+	OP_NOT,
+	OP_EQUAL,
+	OP_GT,
+	OP_LT,
 } OPCode;
 
 // Struct

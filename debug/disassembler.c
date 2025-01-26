@@ -32,6 +32,10 @@ int disassembleInstruction(Chunk* chunk, int index){
 			handleConstantInstruction(chunk, index);
 			break;
 
+		case OP_NOT:
+			printf("OP_NOT\n");
+			break;
+
 		case OP_TRUE:
 			printf("OP_TRUE\n");
 			break;
@@ -63,6 +67,19 @@ int disassembleInstruction(Chunk* chunk, int index){
 		case OP_DIVIDE:
 			printf("OP_DIVIDE\n");
 			break;
+
+		case OP_GT:
+			printf("OP_GT\n");
+			break;
+
+		case OP_LT:
+			printf("OP_LT\n");
+			break;
+
+		case OP_EQUAL:
+			printf("OP_EQUAL\n");
+			break;
+
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;

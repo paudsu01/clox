@@ -24,6 +24,9 @@ void freeVM();
 
 InterpreterResult interpret(const char* source);
 InterpreterResult runVM();
+
+bool trueOrFalse(Value);
+
 void runtimeError(char*,...);
 
 void push(Value);
