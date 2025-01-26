@@ -94,6 +94,7 @@ void disassembleVMStack(){
 	int index = 0;
 	while ((vm.stack + index) < vm.stackpointer){
 		printValue(vm.stack[index++]);
+		printf("\t");
 	}
 	printf("\t]\n");
 }
@@ -102,5 +103,6 @@ static void handleConstantInstruction(Chunk* chunk, int index){
 	uint8_t offset = *((chunk->code)+index);
 	Value value = *(((chunk->constants).values) + offset);
 	printValue(value);
+	printf("\n");
 }
 

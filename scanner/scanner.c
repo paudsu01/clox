@@ -70,9 +70,9 @@ Token scanToken(){
 				else return makeToken(TOKEN_SLASH);
 			
 			case '>':
-				return (matchChar('=')) ? makeToken(TOKEN_LESS_EQUAL) : makeToken(TOKEN_LESS);
-			case '<':
 				return (matchChar('=')) ? makeToken(TOKEN_GREATER_EQUAL) : makeToken(TOKEN_GREATER);
+			case '<':
+				return (matchChar('=')) ? makeToken(TOKEN_LESS_EQUAL) : makeToken(TOKEN_LESS);
 			case '=':
 				return (matchChar('=')) ? makeToken(TOKEN_EQUAL_EQUAL) : makeToken(TOKEN_EQUAL);
 			case '!':

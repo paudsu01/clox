@@ -44,7 +44,7 @@ InterpreterResult runVM(){
 	#define BINARY_OP(resultValue, op) \
 			do { 	Value b = peek(0); Value a=peek(1); \
 				if (IS_NUM(b) && IS_NUM(a)){ \
-			 		double c = AS_NUM(pop()); double d=AS_NUM(pop()); \
+			 		double d = AS_NUM(pop()); double c=AS_NUM(pop()); \
 			  		push(resultValue(c op d)); \
 				} \
 				else{ \
