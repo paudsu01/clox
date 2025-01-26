@@ -74,6 +74,15 @@ InterpreterResult runVM(){
 				push(value);
 				break;
 
+			case OP_TRUE:
+				push(BOOLEAN(true)); break;
+
+			case OP_FALSE:
+				push(BOOLEAN(false)); break;
+
+			case OP_NIL:
+				push(NIL); break;
+
 			case OP_NEGATE:
 				if (!(IS_NUM(peek(0)))){
 					runtimeError("Operand must be a number");

@@ -32,6 +32,18 @@ int disassembleInstruction(Chunk* chunk, int index){
 			handleConstantInstruction(chunk, index);
 			break;
 
+		case OP_TRUE:
+			printf("OP_TRUE\n");
+			break;
+
+		case OP_FALSE:
+			printf("OP_FALSE\n");
+			break;
+
+		case OP_NIL:
+			printf("OP_NIL\n");
+			break;
+
 		case OP_NEGATE:
 			printf("OP_NEGATE\n");
 			break;
@@ -64,7 +76,7 @@ void disassembleVMStack(){
 	printf("VM Stack: [\t");
 	int index = 0;
 	while ((vm.stack + index) < vm.stackpointer){
-		printf("%.3lf, ", vm.stack[index++]);
+		printValue(vm.stack[index++]);
 	}
 	printf("\t]\n");
 }
@@ -72,6 +84,6 @@ void disassembleVMStack(){
 static void handleConstantInstruction(Chunk* chunk, int index){
 	uint8_t offset = *((chunk->code)+index);
 	Value value = *(((chunk->constants).values) + offset);
-	printf("%lf\n", value);
+	printValue(value);
 }
 
