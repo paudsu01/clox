@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "value.h"
 #include "memory.h"
 
@@ -23,4 +24,30 @@ void appendValue(ValueArray* array, Value value){
 void freeValueArray(ValueArray* array){
 	FREE_ARRAY(Value, array->values, array->capacity);
 	initValueArray(array);
+}
+
+void printValue(Value value){
+	switch(value.type){
+		case TYPE_NUM:
+			printf("%lf", AS_NUM(value));
+			break;
+		case TYPE_BOOL:
+			printf("%s", (AS_BOOL(value) == true) ? "true" : "false");
+			break;
+		case TYPE_NIL:
+			printf("nil");
+			break;
+		default:
+			break;
+	}
+}
+
+bool checkIfValuesEqual(Value val1, Value val2){
+	if (val1.type != val2.type) return false;
+	switch (val1.type){
+		case TYPE_NIL: return true;
+		case TYPE_NUM: return AS_NUM(val1) == AS_NUM(val2);
+		case TYPE_BOOL: return AS_BOOL(val1) == AS_BOOL(val2);
+		default: return false;
+	}
 }

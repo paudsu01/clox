@@ -23,7 +23,7 @@ static void emitByte(uint8_t);
 static void emitBytes(uint8_t, uint8_t);
 static void endCompiler();
 static void emitReturn();
-static void emitConstant(double);
+static void emitConstant(Value);
 static Chunk* currentChunk();
 
 // Error handling function prototypes
@@ -38,6 +38,7 @@ static void parsePrecedence(Precedence);
 static void parseBinary();
 static void parseUnary();
 static void parseNumber();
+static void parseLiteral();
 static void parseGrouping();
 
 ParseRow rules[] = {
@@ -52,31 +53,31 @@ ParseRow rules[] = {
   [TOKEN_SEMICOLON]     = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_SLASH]         = {NULL,	     parseBinary,  PREC_FACTOR},	
   [TOKEN_STAR]          = {NULL,	     parseBinary,  PREC_FACTOR},	
-  [TOKEN_BANG]          = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_BANG_EQUAL]    = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_BANG]          = {parseUnary,	     NULL,	   PREC_NONE},	
+  [TOKEN_BANG_EQUAL]    = {NULL,	     parseBinary,  PREC_EQUALITY},	
   [TOKEN_EQUAL]         = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_EQUAL_EQUAL]   = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_GREATER]       = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_GREATER_EQUAL] = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_LESS]          = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_LESS_EQUAL]    = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_EQUAL_EQUAL]   = {NULL,	     parseBinary,  PREC_EQUALITY},	
+  [TOKEN_GREATER]       = {NULL,	     parseBinary,  PREC_COMPARISON},	
+  [TOKEN_GREATER_EQUAL] = {NULL,	     parseBinary,  PREC_COMPARISON},	
+  [TOKEN_LESS]          = {NULL,	     parseBinary,  PREC_COMPARISON},	
+  [TOKEN_LESS_EQUAL]    = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_IDENTIFIER]    = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_STRING]        = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_NUMBER]        = {parseNumber,	     NULL,	   PREC_NONE},	
   [TOKEN_AND]           = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_CLASS]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_ELSE]          = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_FALSE]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_FALSE]         = {parseLiteral,     NULL,	   PREC_NONE},	
   [TOKEN_FOR]           = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_FUN]           = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_IF]            = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_NIL]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_NIL]           = {parseLiteral,     NULL,	   PREC_NONE},	
   [TOKEN_OR]            = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_PRINT]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_RETURN]        = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_SUPER]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_THIS]          = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_TRUE]          = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_TRUE]          = {parseLiteral,     NULL,	   PREC_NONE},	
   [TOKEN_VAR]           = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_WHILE]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_ERROR]         = {NULL,	     NULL,	   PREC_NONE},	
@@ -110,7 +111,24 @@ static void parseGrouping(){
 
 static void parseNumber(){
 	double value = strtod(parser.previousToken.start, NULL);
-	emitConstant(value);
+	emitConstant(NUMBER(value));
+}
+
+static void parseLiteral(){
+	switch (parser.previousToken.type){
+		case TOKEN_TRUE:
+			emitByte(OP_TRUE);
+			break;
+		case TOKEN_FALSE:
+			emitByte(OP_FALSE);
+			break;
+		case TOKEN_NIL:
+			emitByte(OP_NIL);
+			break;
+		default:
+			// Unreachable
+			break;
+	}
 }
 
 static void parseUnary(){
@@ -121,12 +139,15 @@ static void parseUnary(){
 		case TOKEN_MINUS:
 			emitByte(OP_NEGATE);
 			break;
+		case TOKEN_BANG:
+			emitByte(OP_NOT);
+			break;
 		case TOKEN_PLUS:
 			// do nothing
 			break;
+		// unreachable	
 		default:
 			break;
-			// unreachable	
 	}
 }
 
@@ -140,18 +161,37 @@ static void parseBinary(){
 	parsePrecedence((Precedence) (parseRow->level+1));
 
 	switch (type){
+
 		case TOKEN_PLUS:
-			emitByte(OP_ADD);
-			break;	
+			emitByte(OP_ADD); break;	
+
 		case TOKEN_MINUS:
-			emitByte(OP_SUBTRACT);
-			break;	
+			emitByte(OP_SUBTRACT); break;	
+
 		case TOKEN_STAR:
-			emitByte(OP_MULTIPLY);
-			break;	
+			emitByte(OP_MULTIPLY); break;	
+
 		case TOKEN_SLASH:
-			emitByte(OP_DIVIDE);
-			break;	
+			emitByte(OP_DIVIDE); break;	
+
+		case TOKEN_EQUAL_EQUAL:
+			emitByte(OP_EQUAL); break;	
+
+		case TOKEN_BANG_EQUAL:
+			emitBytes(OP_EQUAL, OP_NOT); break;	
+
+		case TOKEN_LESS:
+			emitByte(OP_LT); break;	
+
+		case TOKEN_LESS_EQUAL:
+			emitBytes(OP_GT, OP_NOT); break;	
+
+		case TOKEN_GREATER:
+			emitByte(OP_GT); break;	
+
+		case TOKEN_GREATER_EQUAL:
+			emitBytes(OP_LT, OP_NOT); break;	
+
 		default:
 			break;
 	};
@@ -203,7 +243,7 @@ static void emitBytes(uint8_t byte1, uint8_t byte2){
 
 }
 
-static void emitConstant(double value){
+static void emitConstant(Value value){
 	emitByte(OP_CONSTANT);
 	int index = addConstant(currentChunk(), value);
 	if (index > UINT8_MAX){
