@@ -38,6 +38,7 @@ static void parsePrecedence(Precedence);
 static void parseBinary();
 static void parseUnary();
 static void parseNumber();
+static void parseString();
 static void parseLiteral();
 static void parseGrouping();
 
@@ -62,7 +63,7 @@ ParseRow rules[] = {
   [TOKEN_LESS]          = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_LESS_EQUAL]    = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_IDENTIFIER]    = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_STRING]        = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_STRING]        = {parseString,	     NULL,	   PREC_NONE},	
   [TOKEN_NUMBER]        = {parseNumber,	     NULL,	   PREC_NONE},	
   [TOKEN_AND]           = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_CLASS]         = {NULL,	     NULL,	   PREC_NONE},	
@@ -112,6 +113,10 @@ static void parseGrouping(){
 static void parseNumber(){
 	double value = strtod(parser.previousToken.start, NULL);
 	emitConstant(NUMBER(value));
+}
+
+static void parseString(){
+	emitConstant(OBJECT(makeStringObject(parser.previousToken.start+1, parser.previousToken.length-2)));
 }
 
 static void parseLiteral(){

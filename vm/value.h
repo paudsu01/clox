@@ -42,7 +42,7 @@ bool checkIfValuesEqual(Value,Value);
 #define BOOLEAN(value) ((Value) {.type=TYPE_BOOL, .as.boolean=value})
 #define NUMBER(value) ((Value) {.type=TYPE_NUM, .as.number=value})
 #define NIL ((Value) {.type=TYPE_NIL, .as.number=0})
-#define OBJECT(object) (Value) {.type=TYPE_OBJ .as.object = (Object*) object}
+#define OBJECT(obj) (Value) {.type=TYPE_OBJ, .as.object = (Object*) obj}
 
 #define AS_BOOL(value) value.as.boolean
 #define AS_NUM(value) value.as.number

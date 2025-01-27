@@ -15,4 +15,6 @@ typedef struct{
 	char* string;
 } ObjectString;
 
+void* makeStringObject(const char*,int);
+void* allocateObject(int,ObjectType);
 #endif
