@@ -34,6 +34,7 @@ void appendValue(ValueArray*, Value);
 void freeValueArray(ValueArray*);
 
 void printValue(Value value);
+void printObject(Object* object);
 bool checkIfValuesEqual(Value,Value);
 
 
@@ -46,7 +47,7 @@ bool checkIfValuesEqual(Value,Value);
 
 #define AS_BOOL(value) value.as.boolean
 #define AS_NUM(value) value.as.number
-#define AS_OBJ(value) *(value.as.object)
+#define AS_OBJ(value) value.as.object
 
 #define IS_BOOL(value) value.type == TYPE_BOOL
 #define IS_NIL(value) value.type == TYPE_NIL

@@ -37,6 +37,19 @@ void printValue(Value value){
 		case TYPE_NIL:
 			printf("nil");
 			break;
+		case TYPE_OBJ:
+			printObject(AS_OBJ(value));
+			break;
+		default:
+			break;
+	}
+}
+
+void printObject(Object* object){
+	switch(object->objectType){
+		case OBJECT_STRING:
+			printf("\"%s\"", ((ObjectString*)object)->string);
+			break;
 		default:
 			break;
 	}
