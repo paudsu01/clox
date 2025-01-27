@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "memory.h"
+#include "vm.h"
 
 
 void * reallocate(void* pointer, int oldsize, int newsize){
@@ -12,4 +13,28 @@ void * reallocate(void* pointer, int oldsize, int newsize){
 	pointer = realloc(pointer, newsize);
 	if (pointer == NULL) exit(1);
 	return pointer;
+}
+
+void freeObjects(){
+	extern VM vm;
+	Object* current = vm.objects;
+	while (current != NULL){
+		Object* next = current->next;
+		freeObject(current);
+		current = next;
+	}
+}
+
+void freeObject(Object* object){
+	switch(object->objectType){
+		case OBJECT_STRING:
+			{
+				ObjectString* objectString = (ObjectString*)object;
+				FREE_ARRAY(char, objectString->string, objectString->length+1);
+				reallocate(objectString, sizeof(*objectString), 0);
+			}
+			break;
+		default:
+			break;
+	}
 }

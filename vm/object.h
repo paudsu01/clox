@@ -5,9 +5,11 @@ typedef enum{
 	OBJECT_STRING,
 } ObjectType;
 
-typedef struct{
+struct Object{
 	ObjectType objectType;	
-} Object;
+	struct Object* next;
+};
+typedef struct Object Object;
 
 typedef struct{
 	Object object;

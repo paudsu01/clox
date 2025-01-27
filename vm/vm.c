@@ -12,6 +12,7 @@ VM vm;
 void initVM(){
 	vm.chunk = NULL;
 	vm.ip = NULL;
+	vm.objects = NULL;
 	resetStack();
 }
 
@@ -144,6 +145,7 @@ InterpreterResult runVM(){
 }
 
 void freeVM(){
+	freeObjects();
 	initVM();
 }
 

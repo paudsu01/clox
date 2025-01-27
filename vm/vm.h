@@ -16,6 +16,7 @@ typedef struct{
 	uint8_t* ip;
 	Value* stackpointer;
 	Value stack[STACK_MAX_SIZE];
+	Object* objects;
 } VM;
 
 // function prototypes

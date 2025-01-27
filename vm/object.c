@@ -1,10 +1,16 @@
 #include "object.h"
 #include "memory.h"
 #include "string.h"
+#include "vm.h"
 
 Object * allocateObject(int size, ObjectType type){
+	extern VM vm;
 	Object* object = (Object*) reallocate(NULL,0,size);
 	object->objectType = type;
+
+	object->next = vm.objects;
+	vm.objects = object;
+
 	return object;
 }
 
