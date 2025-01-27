@@ -26,6 +26,7 @@ InterpreterResult interpret(const char* source);
 InterpreterResult runVM();
 
 bool trueOrFalse(Value);
+Object* concatenate();
 
 void runtimeError(char*,...);
 

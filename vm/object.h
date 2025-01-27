@@ -1,6 +1,6 @@
 #ifndef OBJECT_H
 #define OBJECT_H
-	
+
 typedef enum{
 	OBJECT_STRING,
 } ObjectType;
@@ -15,6 +15,7 @@ typedef struct{
 	char* string;
 } ObjectString;
 
-void* makeStringObject(const char*,int);
-void* allocateObject(int,ObjectType);
+ObjectString* makeStringObject(const char*,int);
+Object* allocateObject(int,ObjectType);
+
 #endif

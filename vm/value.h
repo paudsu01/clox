@@ -49,10 +49,12 @@ bool checkIfObjectsEqual(Object*,Object*);
 #define AS_BOOL(value) value.as.boolean
 #define AS_NUM(value) value.as.number
 #define AS_OBJ(value) value.as.object
+#define AS_STRING_OBJ(value) (ObjectString*) value.as.object
 
 #define IS_BOOL(value) value.type == TYPE_BOOL
 #define IS_NIL(value) value.type == TYPE_NIL
 #define IS_NUM(value) value.type == TYPE_NUM
 #define IS_OBJ(value) value.type == TYPE_OBJ
+#define IS_STRING(value) IS_OBJ(value) && (AS_OBJ(value)->objectType == OBJECT_STRING)
 
 #endif

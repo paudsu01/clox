@@ -1,9 +1,11 @@
 #include "vm.h"
+#include "memory.h"
 #include "../compiler/compiler.h"
 #include "../debug/disassembler.h"
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 VM vm;
 
@@ -41,13 +43,18 @@ InterpreterResult runVM(){
 
 	#define BYTES_LEFT_TO_EXECUTE() (vm.ip < (vm.chunk->code + vm.chunk->count))
 
-	#define BINARY_OP(resultValue, op) \
+	#define BINARY_OP(resultValue, op, type) \
 			do { 	Value b = peek(0); Value a=peek(1); \
 				if (IS_NUM(b) && IS_NUM(a)){ \
 			 		double d = AS_NUM(pop()); double c=AS_NUM(pop()); \
 			  		push(resultValue(c op d)); \
 				} \
-				else{ \
+				else if (type == OP_ADD && IS_STRING(b) && IS_STRING(a)){ \
+					push(OBJECT(concatenate())); \
+				} else if (type == OP_ADD){\
+					runtimeError("Operands must be two numbers or two strings");\
+					return RUNTIME_ERROR;\
+				} else{ \
 					runtimeError("Operands must be numbers");\
 					return RUNTIME_ERROR;\
 				} \
@@ -97,27 +104,27 @@ InterpreterResult runVM(){
 				break;
 
 			case OP_ADD:
-				BINARY_OP(NUMBER, +);
+				BINARY_OP(NUMBER, +, OP_ADD);
 				break;
 			
 			case OP_SUBTRACT:
-				BINARY_OP(NUMBER, -);
+				BINARY_OP(NUMBER, -, OP_SUBTRACT);
 				break;
 
 			case OP_MULTIPLY:
-				BINARY_OP(NUMBER, *);
+				BINARY_OP(NUMBER, *, OP_MULTIPLY);
 				break;
 
 			case OP_DIVIDE:
-				BINARY_OP(NUMBER, /);
+				BINARY_OP(NUMBER, /, OP_DIVIDE);
 				break;
 
 			case OP_GT:
-				BINARY_OP(BOOLEAN, >);
+				BINARY_OP(BOOLEAN, >, OP_GT);
 				break;
 
 			case OP_LT:
-				BINARY_OP(BOOLEAN, <);
+				BINARY_OP(BOOLEAN, <, OP_LT);
 				break;
 
 			case OP_EQUAL:
@@ -145,6 +152,21 @@ bool trueOrFalse(Value val){
 	if (val.type == TYPE_NUM) return true;
 	else if (val.type == TYPE_BOOL) return AS_BOOL(val);
 	return false;
+}
+
+Object* concatenate(){
+	ObjectString* b = AS_STRING_OBJ(pop());
+	ObjectString* a = AS_STRING_OBJ(pop());
+
+	int length = b->length+a->length;
+	char* string = (char*) reallocate(NULL, 0, length);
+	memcpy(string, a->string, a->length);
+	memcpy(string+a->length, b->string, b->length);
+	
+
+	ObjectString* ptr = makeStringObject(string, length);
+	reallocate(string, length, 0);
+	return (Object*) ptr;
 }
 
 //Error handling functions
