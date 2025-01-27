@@ -36,6 +36,7 @@ void freeValueArray(ValueArray*);
 void printValue(Value value);
 void printObject(Object* object);
 bool checkIfValuesEqual(Value,Value);
+bool checkIfObjectsEqual(Object*,Object*);
 
 
 // Useful macros

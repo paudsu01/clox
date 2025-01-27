@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "value.h"
 #include "memory.h"
+#include "string.h"
 
 
 void initValueArray(ValueArray* array){
@@ -61,6 +62,21 @@ bool checkIfValuesEqual(Value val1, Value val2){
 		case TYPE_NIL: return true;
 		case TYPE_NUM: return AS_NUM(val1) == AS_NUM(val2);
 		case TYPE_BOOL: return AS_BOOL(val1) == AS_BOOL(val2);
+		case TYPE_OBJ: return checkIfObjectsEqual(AS_OBJ(val1),AS_OBJ(val2));
 		default: return false;
+	}
+}
+
+bool checkIfObjectsEqual(Object* obj1, Object* obj2){
+	switch(obj1->objectType){
+		case OBJECT_STRING:
+			{
+				ObjectString* objStr1 = ((ObjectString*)obj1);
+				ObjectString* objStr2 = ((ObjectString*)obj2);
+				if (objStr1->length != objStr2->length) return false;
+				return (memcmp(objStr1->string, objStr2->string, objStr1->length) == 0) ? true : false;
+			}
+		default:
+			return true;
 	}
 }
