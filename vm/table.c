@@ -15,7 +15,7 @@ void freeTable(Table* table){
 	initTable(table);
 }
 
-void addEntry(Table* table, ObjectString* key, Value value){
+void tableAdd(Table* table, ObjectString* key, Value value){
 	// allocate and resize if necessary
 	if (table->count + 1 > table->capacity * MAX_TABLE_LOAD) {
 		int capacity = GROW_CAPACITY(table->capacity);
@@ -23,7 +23,7 @@ void addEntry(Table* table, ObjectString* key, Value value){
 	}
 
 	// find entry to put value in
-	Entry* entry = findEntry(table->entries, table->capacity, key);
+	Entry* entry = tableFind(table->entries, table->capacity, key);
 	if (entry->key != NULL) table->count++;
 
 	// add new entry
@@ -31,7 +31,7 @@ void addEntry(Table* table, ObjectString* key, Value value){
 	entry->value= value;
 }
 
-Entry* findEntry(Entry* initialEntry, int capacity, ObjectString* key){
+Entry* tableFind(Entry* initialEntry, int capacity, ObjectString* key){
 	int index = key->hash % capacity;
 
 	Entry* entry = NULL;
@@ -41,6 +41,17 @@ Entry* findEntry(Entry* initialEntry, int capacity, ObjectString* key){
 		index = (index + 1) % capacity;
 	}
 	return entry;
+}
+
+bool tableHas(Table* table, ObjectString* key){
+	Entry* entry = tableFind(table->entries, table->capacity, key);
+	return (entry->key == NULL) ? false : true;
+}
+
+Value tableGet(Table* table, ObjectString* key){
+	Entry* entry = tableFind(table->entries, table->capacity, key);
+	if (entry->key == NULL) return NIL;
+	return entry->value;
 }
 
 void adjustHashTable(Table* table, int capacity){
@@ -56,7 +67,7 @@ void adjustHashTable(Table* table, int capacity){
 		Entry* source= table->entries + i;
 		if (source->key != NULL) {
 			//re-insert	
-			Entry* dest= findEntry(entries, capacity, source->key);
+			Entry* dest= tableFind(entries, capacity, source->key);
 			dest->key = source->key;
 			dest->value = source->value;
 		}

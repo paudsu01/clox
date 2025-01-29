@@ -20,8 +20,10 @@ typedef struct{
 void initTable(Table*);
 void freeTable(Table*);
 
-void addEntry(Table*, ObjectString*, Value);
-Entry* findEntry(Entry*,int,ObjectString*);
+void tableAdd(Table*, ObjectString*, Value);
+Entry* tableFind(Entry*,int,ObjectString*);
+bool tableHas(Table*, ObjectString*);
+Value tableGet(Table*, ObjectString*);
 
 void adjustHashTable(Table*, int);
 
