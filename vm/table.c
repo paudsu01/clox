@@ -2,7 +2,6 @@
 #include "table.h"
 #include "memory.h"
 
-
 void initTable(Table* table){
 	table->count=0;
 	table->capacity=0;
@@ -24,7 +23,7 @@ void tableAdd(Table* table, ObjectString* key, Value value){
 
 	// find entry to put value in
 	Entry* entry = tableFind(table->entries, table->capacity, key);
-	if (entry->key != NULL) table->count++;
+	if (entry->key == NULL && IS_NIL(entry->value)) table->count++;
 
 	// add new entry
 	entry->key = key;
@@ -34,10 +33,20 @@ void tableAdd(Table* table, ObjectString* key, Value value){
 Entry* tableFind(Entry* initialEntry, int capacity, ObjectString* key){
 	int index = key->hash % capacity;
 
+	Entry* tombstone = NULL;
 	Entry* entry = NULL;
+
 	while (true){
 		entry = initialEntry + index;
-		if (entry->key == NULL || entry->key == key) return entry;
+		if (entry->key == NULL){
+		      if (IS_NIL(entry->value)){
+				return (tombstone != NULL) ? tombstone : entry;
+		      } else {
+				if (tombstone == NULL) tombstone = entry;
+		      }
+
+		} else if (entry->key == key) return entry;
+
 		index = (index + 1) % capacity;
 	}
 	return entry;
@@ -54,6 +63,17 @@ Value tableGet(Table* table, ObjectString* key){
 	return entry->value;
 }
 
+bool tableDelete(Table* table, ObjectString* key){
+	if (table->count == 0) return false;
+
+	Entry* entry = tableFind(table->entries, table->capacity, key);
+	if (entry->key == NULL) return false;
+
+	entry->key = NULL;
+	entry->value = BOOLEAN(true);
+	return true;
+}
+
 void adjustHashTable(Table* table, int capacity){
 	// Allocate memory
 	Entry* entries = (Entry*) reallocate(NULL, sizeof(Entry) * table->capacity, sizeof(Entry) * capacity);
@@ -62,16 +82,21 @@ void adjustHashTable(Table* table, int capacity){
 		entries[i].value = NIL;	
 	}
 
+	table->count = 0;
 	// Re-insert all elements from our heap array
 	for (int i=0; i< table->capacity;i++){
 		Entry* source= table->entries + i;
+
 		if (source->key != NULL) {
 			//re-insert	
 			Entry* dest= tableFind(entries, capacity, source->key);
 			dest->key = source->key;
 			dest->value = source->value;
+
+			table->count++;
 		}
 	}
+
 	FREE_ARRAY(Entry, table->entries, table->capacity);
 	table->entries = entries;
 	table->capacity = capacity;

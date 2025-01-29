@@ -24,6 +24,7 @@ void tableAdd(Table*, ObjectString*, Value);
 Entry* tableFind(Entry*,int,ObjectString*);
 bool tableHas(Table*, ObjectString*);
 Value tableGet(Table*, ObjectString*);
+bool tableDelete(Table*, ObjectString*);
 
 void adjustHashTable(Table*, int);
 
