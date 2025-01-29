@@ -18,4 +18,7 @@ typedef struct{
 void initTable(Table*);
 void freeTable(Table*);
 
+void addEntry(Table*, ObjectString*, Value);
+Entry* findEntry(Table*, ObjectString*);
+
 #endif
