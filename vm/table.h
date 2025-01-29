@@ -3,6 +3,8 @@
 
 #include "value.h"
 
+#define MAX_TABLE_LOAD 0.75
+
 typedef struct{
 	ObjectString* key;
 	Value value;
@@ -19,6 +21,8 @@ void initTable(Table*);
 void freeTable(Table*);
 
 void addEntry(Table*, ObjectString*, Value);
-Entry* findEntry(Table*, ObjectString*);
+Entry* findEntry(Entry*,int,ObjectString*);
+
+void adjustHashTable(Table*, int);
 
 #endif
