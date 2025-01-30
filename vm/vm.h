@@ -2,6 +2,7 @@
 #define VM_H
 
 #include "chunk.h"
+#include "table.h"
 
 #define STACK_MAX_SIZE 256
 
@@ -17,6 +18,7 @@ typedef struct{
 	Value* stackpointer;
 	Value stack[STACK_MAX_SIZE];
 	Object* objects;
+	Table strings;
 } VM;
 
 // function prototypes

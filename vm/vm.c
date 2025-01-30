@@ -13,6 +13,7 @@ void initVM(){
 	vm.chunk = NULL;
 	vm.ip = NULL;
 	vm.objects = NULL;
+	initTable(&vm.strings);
 	resetStack();
 }
 
@@ -146,6 +147,7 @@ InterpreterResult runVM(){
 
 void freeVM(){
 	freeObjects();
+	freeTable(&vm.strings);
 	initVM();
 }
 
@@ -164,9 +166,9 @@ Object* concatenate(){
 	char* string = (char*) reallocate(NULL, 0, length);
 	memcpy(string, a->string, a->length);
 	memcpy(string+a->length, b->string, b->length);
-	
 
 	ObjectString* ptr = makeStringObject(string, length);
+
 	reallocate(string, length, 0);
 	return (Object*) ptr;
 }
