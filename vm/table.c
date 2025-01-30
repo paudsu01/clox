@@ -1,6 +1,7 @@
 #include "../common.h"
 #include "table.h"
 #include "memory.h"
+#include "string.h"
 
 void initTable(Table* table){
 	table->count=0;
@@ -100,4 +101,25 @@ void adjustHashTable(Table* table, int capacity){
 	FREE_ARRAY(Entry, table->entries, table->capacity);
 	table->entries = entries;
 	table->capacity = capacity;
+}
+
+ObjectString* tableFindString(Table* table, const char* string, int length, uint32_t hash){
+	if (table->capacity == 0) return NULL;
+
+	int capacity = table->capacity;
+	int index = hash % capacity;
+
+	Entry* entry = NULL;
+
+	while (true){
+		entry = table->entries + index;
+		if (entry->key == NULL){
+		      if (IS_NIL(entry->value)) return NULL;
+
+		} else if (entry->key->hash == hash && length == entry->key->length && memcmp(entry->key->string, string, length) == 0){
+			   return entry->key;
+		}
+
+		index = (index + 1) % capacity;
+	}
 }

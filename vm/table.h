@@ -27,5 +27,6 @@ Value tableGet(Table*, ObjectString*);
 bool tableDelete(Table*, ObjectString*);
 
 void adjustHashTable(Table*, int);
+ObjectString* tableFindString(Table*, const char*, int, uint32_t);
 
 #endif

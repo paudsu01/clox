@@ -3,6 +3,8 @@
 #include "string.h"
 #include "vm.h"
 
+extern VM vm;
+
 Object * allocateObject(int size, ObjectType type){
 	extern VM vm;
 	Object* object = (Object*) reallocate(NULL,0,size);
@@ -19,6 +21,10 @@ ObjectString* makeStringObject(const char* start, int length){
 	char* string = (char*) reallocate(NULL,0,length+1);
 	memcpy(string, start, length);
 	string[length] = '\0';
+	return allocateStringObject(string, length);
+}
+
+ObjectString* allocateStringObject(char* string, int length){
 
 	ObjectString* objString = (ObjectString *) allocateObject(sizeof(ObjectString), OBJECT_STRING);
 	objString->string = string;
