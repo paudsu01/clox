@@ -26,12 +26,25 @@ ObjectString* makeStringObject(const char* start, int length){
 
 ObjectString* allocateStringObject(char* string, int length){
 
-	ObjectString* objString = (ObjectString *) allocateObject(sizeof(ObjectString), OBJECT_STRING);
-	objString->string = string;
-	objString->length = length;
-	objString->hash = jenkinsHash(string, length);
+	uint32_t hash = jenkinsHash(string, length);
+	ObjectString* interned = tableFindString(&vm.strings, string, length, hash);
 
-	return objString;
+	if (interned == NULL){
+
+		ObjectString* objString = (ObjectString *) allocateObject(sizeof(ObjectString), OBJECT_STRING);
+		objString->string = string;
+		objString->length = length;
+		objString->hash = hash; 
+
+		// Add to hash set
+		tableAdd(&vm.strings, objString, NIL);
+
+		return objString;
+	}
+	else {
+		FREE_ARRAY(char, string, length + 1);
+		return interned;
+	}
 }
 
 
