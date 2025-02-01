@@ -1,4 +1,6 @@
 *.lox
 **.swp
 **.out
+**.sh
+!main.out
 prattParsing/
