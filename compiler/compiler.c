@@ -15,6 +15,7 @@ Chunk* compilingChunk;
 // Function prototypes
 
 static void consumeToken(TokenType, char*);
+static bool matchToken(TokenType);
 static void advanceToken();
 
 // Bytecode emitting function prototypes
@@ -30,6 +31,12 @@ static Chunk* currentChunk();
 static void errorAtCurrentToken(const char*);
 static void errorAtPreviousToken(const char*);
 static void error(Token, const char*);
+
+// parsing functions
+static void parseDeclaration();
+static void parseStatement();
+static void parsePrintStatement();
+static void parseExpressionStatement();
 
 // pratt parsing functions
 static ParseRow* getParseRow(TokenType);
@@ -92,11 +99,36 @@ bool compile(const char* source, Chunk* chunk){
 
 	initScanner(source);
 	advanceToken();
-	parseExpression();
 
-	consumeToken(TOKEN_EOF, "Expect end of expression");
+	while (!matchToken(TOKEN_EOF)){
+		parseDeclaration();
+	}
+
 	endCompiler();
 	return !parser.hadError;
+}
+
+// parsing declaration/statements
+
+static void parseDeclaration(){
+	parseStatement();
+}
+
+static void parseStatement(){
+	if (matchToken(TOKEN_PRINT)){
+		parsePrintStatement();
+	} else{
+		parseExpressionStatement();
+	}
+}
+
+static void parseExpressionStatement(){
+	parseExpression();
+	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of expression");
+}
+
+static void parsePrintStatement(){
+	parseExpressionStatement();
 }
 
 // PrattParsing functions
@@ -235,6 +267,13 @@ static void consumeToken(TokenType type, char * message){
 	}
 }
 
+static bool matchToken(TokenType type){
+	if (parser.currentToken.type == type){
+		advanceToken();
+		return true;
+	}
+	return false;
+}
 
 // Bytecode emitting function prototypes
 
