@@ -73,9 +73,13 @@ InterpreterResult runVM(){
 
 		uint8_t byte = READ_BYTE();
 		switch (byte){
-			case OP_RETURN:
+			case OP_PRINT:
 				printValue(pop());
 				printf("\n");
+				break;
+
+			case OP_POP:
+				pop();
 				break;
 
 			case OP_CONSTANT:

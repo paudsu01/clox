@@ -125,10 +125,13 @@ static void parseStatement(){
 static void parseExpressionStatement(){
 	parseExpression();
 	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of expression");
+	emitByte(OP_POP);
 }
 
 static void parsePrintStatement(){
-	parseExpressionStatement();
+	parseExpression();
+	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of expression");
+	emitByte(OP_PRINT);
 }
 
 // PrattParsing functions
@@ -294,8 +297,9 @@ static void emitConstant(Value value){
 		// error
 		errorAtPreviousToken("Too many constants in one chunk");
 		index=0;
+	} else{
+		emitByte((uint8_t) index);
 	}
-	emitByte((uint8_t) index);
 }
 
 static void endCompiler(){

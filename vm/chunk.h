@@ -20,6 +20,8 @@ typedef enum {
 	OP_EQUAL,
 	OP_GT,
 	OP_LT,
+	OP_POP,
+	OP_PRINT,
 } OPCode;
 
 // Struct

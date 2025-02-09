@@ -80,6 +80,14 @@ int disassembleInstruction(Chunk* chunk, int index){
 			printf("OP_EQUAL\n");
 			break;
 
+		case OP_PRINT:
+			printf("OP_PRINT\n");
+			break;
+
+		case OP_POP:
+			printf("OP_POP\n");
+			break;
+
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;
