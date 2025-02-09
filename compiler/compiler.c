@@ -31,6 +31,7 @@ static Chunk* currentChunk();
 static void errorAtCurrentToken(const char*);
 static void errorAtPreviousToken(const char*);
 static void error(Token, const char*);
+static void synchronize();
 
 // parsing functions
 static void parseDeclaration();
@@ -112,6 +113,9 @@ bool compile(const char* source, Chunk* chunk){
 
 static void parseDeclaration(){
 	parseStatement();
+	if (parser.panicMode){
+		synchronize();
+	}
 }
 
 static void parseStatement(){
@@ -241,12 +245,20 @@ static void parsePrecedence(Precedence precedence){
 	advanceToken();
 	Token token = parser.previousToken;
 	parseFn prefix = (getParseRow(token.type))->prefixFunction;
-	(*prefix)();
+	if (prefix != NULL) (*prefix)();
+	else {
+		errorAtPreviousToken("Invalid target");
+		return;
+	}
 
 	while (getParseRow(parser.currentToken.type)->level >= precedence){
 		advanceToken();
 		parseFn infix = (getParseRow(parser.previousToken.type))->infixFunction;
-		(*infix)();
+		if (infix != NULL) (*infix)();
+		else {
+			errorAtPreviousToken("Invalid target");
+			return;
+		}
 	}
 
 }
@@ -345,4 +357,31 @@ static void error(Token token, const char* message){
 
 	fprintf(stderr, ": %s\n", message);
 
+}
+
+static void synchronize(){
+
+	parser.panicMode = false;
+
+	while (parser.currentToken.type != TOKEN_EOF){
+
+		if (parser.previousToken.type == TOKEN_SEMICOLON) break;
+		switch (parser.currentToken.type){
+			
+			case TOKEN_CLASS:
+			case TOKEN_FUN:
+			case TOKEN_IF:
+			case TOKEN_WHILE:
+			case TOKEN_FOR:
+			case TOKEN_VAR:
+			case TOKEN_PRINT:
+			case TOKEN_RETURN:
+				return;
+
+			default:
+				break;
+		}
+		advanceToken();
+
+	}
 }
