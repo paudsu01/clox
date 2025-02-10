@@ -30,7 +30,7 @@ typedef enum{
 } Precedence;
 
 // function pointer typdef
-typedef void (*parseFn)();
+typedef void (*parseFn)(bool);
 
 typedef struct{
 	parseFn prefixFunction;	

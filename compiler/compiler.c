@@ -45,13 +45,13 @@ static void parseExpressionStatement();
 static ParseRow* getParseRow(TokenType);
 static void parseExpression();
 static void parsePrecedence(Precedence);
-static void parseBinary();
-static void parseUnary();
-static void parseNumber();
-static void parseString();
-static void parseLiteral();
-static void parseIdentifier();
-static void parseGrouping();
+static void parseBinary(bool);
+static void parseUnary(bool);
+static void parseNumber(bool);
+static void parseString(bool);
+static void parseLiteral(bool);
+static void parseIdentifier(bool);
+static void parseGrouping(bool);
 
 ParseRow rules[] = {
   [TOKEN_LEFT_PAREN]    = {parseGrouping,    NULL,	   PREC_NONE},	
@@ -166,21 +166,21 @@ static void parseExpression(){
 	parsePrecedence(PREC_ASSIGN);
 }
 
-static void parseGrouping(){
+static void parseGrouping(bool canAssign){
 	parseExpression();
 	consumeToken(TOKEN_RIGHT_PAREN, "'(' expected");
 }
 
-static void parseNumber(){
+static void parseNumber(bool canAssign){
 	double value = strtod(parser.previousToken.start, NULL);
 	emitConstant(NUMBER(value));
 }
 
-static void parseString(){
+static void parseString(bool canAssign){
 	emitConstant(OBJECT(makeStringObject(parser.previousToken.start+1, parser.previousToken.length-2)));
 }
 
-static void parseLiteral(){
+static void parseLiteral(bool canAssign){
 	switch (parser.previousToken.type){
 		case TOKEN_TRUE:
 			emitByte(OP_TRUE);
@@ -197,11 +197,11 @@ static void parseLiteral(){
 	}
 }
 
-static void parseIdentifier(){
+static void parseIdentifier(bool canAssign){
 
 	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
 	uint8_t index = addConstantAndCheckLimit(value);
-	if (matchToken(TOKEN_EQUAL)){
+	if (canAssign && matchToken(TOKEN_EQUAL)){
 		parseExpression();
 		emitBytes(OP_SET_GLOBAL, index);
 	} else {
@@ -210,7 +210,7 @@ static void parseIdentifier(){
 
 }
 
-static void parseUnary(){
+static void parseUnary(bool canAssign){
 	TokenType tokenType = parser.previousToken.type;
 	parsePrecedence(PREC_UNARY);
 
@@ -234,7 +234,7 @@ static ParseRow* getParseRow(TokenType type){
 	return &(rules[type]);
 }
 
-static void parseBinary(){
+static void parseBinary(bool canAssign){
 	TokenType type = parser.previousToken.type;
 	ParseRow* parseRow = getParseRow(type);	
 	parsePrecedence((Precedence) (parseRow->level+1));
@@ -280,7 +280,10 @@ static void parsePrecedence(Precedence precedence){
 	advanceToken();
 	Token token = parser.previousToken;
 	parseFn prefix = (getParseRow(token.type))->prefixFunction;
-	if (prefix != NULL) (*prefix)();
+
+	bool canAssign = precedence <= PREC_ASSIGN;
+
+	if (prefix != NULL) (*prefix)(canAssign);
 	else {
 		errorAtPreviousToken("Invalid target");
 		return;
@@ -289,12 +292,14 @@ static void parsePrecedence(Precedence precedence){
 	while (getParseRow(parser.currentToken.type)->level >= precedence){
 		advanceToken();
 		parseFn infix = (getParseRow(parser.previousToken.type))->infixFunction;
-		if (infix != NULL) (*infix)();
+		if (infix != NULL) (*infix)(canAssign);
 		else {
 			errorAtPreviousToken("Invalid target");
 			return;
 		}
 	}
+
+	if (canAssign && matchToken(TOKEN_EQUAL)) errorAtPreviousToken("Invalid assignment target.");
 
 }
 // Token handling functions
