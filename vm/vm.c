@@ -145,6 +145,21 @@ InterpreterResult runVM(){
 					tableAdd(&vm.globals, objString, pop());
 				}
 				break;
+
+			case OP_GET_GLOBAL:
+				{
+					value = READ_CONSTANT();
+					ObjectString* objString = AS_STRING_OBJ(value);
+					if (tableHas(&vm.globals, objString)){
+						push(tableGet(&vm.globals, objString));
+
+					} else {
+						runtimeError("Undefined variable '%s'", objString->string) ;
+						return RUNTIME_ERROR;
+					}
+				}
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}
@@ -189,14 +204,15 @@ Object* concatenate(){
 //Error handling functions
 void runtimeError(char* format, ...){
 	va_list ap;
+
+	int index = vm.ip - 1 - vm.chunk->code;
+	int line = vm.chunk->lines[index];
+	fprintf(stderr, "line [%d] : ", line);
+
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
-
-	int index = vm.ip - 1 - vm.chunk->code;
-	int line = vm.chunk->lines[index];
-	fprintf(stderr, "line [%d] in script\n", line);
 	resetStack();
 }
 

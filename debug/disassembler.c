@@ -38,6 +38,12 @@ int disassembleInstruction(Chunk* chunk, int index){
 			handleConstantInstruction(chunk, index);
 			break;
 
+		case OP_GET_GLOBAL:
+			printf("OP_GET_GLOBAL\t");
+			index++;
+			handleConstantInstruction(chunk, index);
+			break;
+
 		case OP_NOT:
 			printf("OP_NOT\n");
 			break;

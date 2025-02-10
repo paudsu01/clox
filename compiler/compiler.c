@@ -50,6 +50,7 @@ static void parseUnary();
 static void parseNumber();
 static void parseString();
 static void parseLiteral();
+static void parseIdentifier();
 static void parseGrouping();
 
 ParseRow rules[] = {
@@ -72,7 +73,7 @@ ParseRow rules[] = {
   [TOKEN_GREATER_EQUAL] = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_LESS]          = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_LESS_EQUAL]    = {NULL,	     parseBinary,  PREC_COMPARISON},	
-  [TOKEN_IDENTIFIER]    = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_IDENTIFIER]    = {parseIdentifier,    NULL,	   PREC_NONE},	
   [TOKEN_STRING]        = {parseString,	     NULL,	   PREC_NONE},	
   [TOKEN_NUMBER]        = {parseNumber,	     NULL,	   PREC_NONE},	
   [TOKEN_AND]           = {NULL,	     NULL,	   PREC_NONE},	
@@ -194,6 +195,14 @@ static void parseLiteral(){
 			// Unreachable
 			break;
 	}
+}
+
+static void parseIdentifier(){
+
+	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+	uint8_t index = addConstantAndCheckLimit(value);
+	emitBytes(OP_GET_GLOBAL, index);
+
 }
 
 static void parseUnary(){
