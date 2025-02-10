@@ -14,6 +14,7 @@ void initVM(){
 	vm.ip = NULL;
 	vm.objects = NULL;
 	initTable(&vm.strings);
+	initTable(&vm.globals);
 	resetStack();
 }
 
@@ -137,6 +138,13 @@ InterpreterResult runVM(){
 				push(BOOLEAN(checkIfValuesEqual(pop(), pop())));
 				break;
 
+			case OP_DEFINE_GLOBAL:
+				{
+					value = READ_CONSTANT();
+					ObjectString* objString = AS_STRING_OBJ(value);
+					tableAdd(&vm.globals, objString, pop());
+				}
+				break;
 			default:
 				return COMPILE_ERROR;
 		}
@@ -152,6 +160,7 @@ InterpreterResult runVM(){
 void freeVM(){
 	freeObjects();
 	freeTable(&vm.strings);
+	freeTable(&vm.globals);
 	initVM();
 }
 

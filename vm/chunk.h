@@ -22,6 +22,8 @@ typedef enum {
 	OP_LT,
 	OP_POP,
 	OP_PRINT,
+	OP_DEFINE_GLOBAL,
+	OP_GET_GLOBAL,
 } OPCode;
 
 // Struct

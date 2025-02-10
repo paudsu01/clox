@@ -25,6 +25,7 @@ static void emitBytes(uint8_t, uint8_t);
 static void endCompiler();
 static void emitReturn();
 static void emitConstant(Value);
+static uint8_t addConstantAndCheckLimit(Value value);
 static Chunk* currentChunk();
 
 // Error handling function prototypes
@@ -35,6 +36,7 @@ static void synchronize();
 
 // parsing functions
 static void parseDeclaration();
+static void parseVarDeclaration();
 static void parseStatement();
 static void parsePrintStatement();
 static void parseExpressionStatement();
@@ -112,10 +114,29 @@ bool compile(const char* source, Chunk* chunk){
 // parsing declaration/statements
 
 static void parseDeclaration(){
-	parseStatement();
+	if (matchToken(TOKEN_VAR)) parseVarDeclaration();
+	else parseStatement();
+
 	if (parser.panicMode){
 		synchronize();
 	}
+}
+
+static void parseVarDeclaration(){
+	// make Lox string with current token and add it to chunk's constant table
+	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
+	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+	uint8_t index = addConstantAndCheckLimit(value);
+	
+	if (matchToken(TOKEN_EQUAL)){
+		parseExpression();
+	} else{
+		emitByte(OP_NIL);
+	}
+
+	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of var declaration");
+	// emit byte to add it to global hash table
+	emitBytes(OP_DEFINE_GLOBAL, index);
 }
 
 static void parseStatement(){
@@ -304,14 +325,18 @@ static void emitBytes(uint8_t byte1, uint8_t byte2){
 
 static void emitConstant(Value value){
 	emitByte(OP_CONSTANT);
+	int index = addConstantAndCheckLimit(value);
+	emitByte((uint8_t) index);
+}
+
+static uint8_t addConstantAndCheckLimit(Value value){
 	int index = addConstant(currentChunk(), value);
 	if (index > UINT8_MAX){
 		// error
-		errorAtPreviousToken("Too many constants in one chunk");
+		errorAtPreviousToken("Too many values in one chunk");
 		index=0;
-	} else{
-		emitByte((uint8_t) index);
 	}
+	return index;
 }
 
 static void endCompiler(){
