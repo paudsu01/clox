@@ -15,6 +15,7 @@ Chunk* compilingChunk;
 // Function prototypes
 
 static void consumeToken(TokenType, char*);
+static bool matchToken(TokenType);
 static void advanceToken();
 
 // Bytecode emitting function prototypes
@@ -24,23 +25,33 @@ static void emitBytes(uint8_t, uint8_t);
 static void endCompiler();
 static void emitReturn();
 static void emitConstant(Value);
+static uint8_t addConstantAndCheckLimit(Value value);
 static Chunk* currentChunk();
 
 // Error handling function prototypes
 static void errorAtCurrentToken(const char*);
 static void errorAtPreviousToken(const char*);
 static void error(Token, const char*);
+static void synchronize();
+
+// parsing functions
+static void parseDeclaration();
+static void parseVarDeclaration();
+static void parseStatement();
+static void parsePrintStatement();
+static void parseExpressionStatement();
 
 // pratt parsing functions
 static ParseRow* getParseRow(TokenType);
 static void parseExpression();
 static void parsePrecedence(Precedence);
-static void parseBinary();
-static void parseUnary();
-static void parseNumber();
-static void parseString();
-static void parseLiteral();
-static void parseGrouping();
+static void parseBinary(bool);
+static void parseUnary(bool);
+static void parseNumber(bool);
+static void parseString(bool);
+static void parseLiteral(bool);
+static void parseIdentifier(bool);
+static void parseGrouping(bool);
 
 ParseRow rules[] = {
   [TOKEN_LEFT_PAREN]    = {parseGrouping,    NULL,	   PREC_NONE},	
@@ -62,7 +73,7 @@ ParseRow rules[] = {
   [TOKEN_GREATER_EQUAL] = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_LESS]          = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_LESS_EQUAL]    = {NULL,	     parseBinary,  PREC_COMPARISON},	
-  [TOKEN_IDENTIFIER]    = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_IDENTIFIER]    = {parseIdentifier,    NULL,	   PREC_NONE},	
   [TOKEN_STRING]        = {parseString,	     NULL,	   PREC_NONE},	
   [TOKEN_NUMBER]        = {parseNumber,	     NULL,	   PREC_NONE},	
   [TOKEN_AND]           = {NULL,	     NULL,	   PREC_NONE},	
@@ -92,11 +103,61 @@ bool compile(const char* source, Chunk* chunk){
 
 	initScanner(source);
 	advanceToken();
-	parseExpression();
 
-	consumeToken(TOKEN_EOF, "Expect end of expression");
+	while (!matchToken(TOKEN_EOF)){
+		parseDeclaration();
+	}
+
 	endCompiler();
 	return !parser.hadError;
+}
+
+// parsing declaration/statements
+
+static void parseDeclaration(){
+	if (matchToken(TOKEN_VAR)) parseVarDeclaration();
+	else parseStatement();
+
+	if (parser.panicMode){
+		synchronize();
+	}
+}
+
+static void parseVarDeclaration(){
+	// make Lox string with current token and add it to chunk's constant table
+	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
+	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+	uint8_t index = addConstantAndCheckLimit(value);
+	
+	if (matchToken(TOKEN_EQUAL)){
+		parseExpression();
+	} else{
+		emitByte(OP_NIL);
+	}
+
+	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of var declaration");
+	// emit byte to add it to global hash table
+	emitBytes(OP_DEFINE_GLOBAL, index);
+}
+
+static void parseStatement(){
+	if (matchToken(TOKEN_PRINT)){
+		parsePrintStatement();
+	} else{
+		parseExpressionStatement();
+	}
+}
+
+static void parseExpressionStatement(){
+	parseExpression();
+	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of expression");
+	emitByte(OP_POP);
+}
+
+static void parsePrintStatement(){
+	parseExpression();
+	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of expression");
+	emitByte(OP_PRINT);
 }
 
 // PrattParsing functions
@@ -105,21 +166,21 @@ static void parseExpression(){
 	parsePrecedence(PREC_ASSIGN);
 }
 
-static void parseGrouping(){
+static void parseGrouping(bool canAssign){
 	parseExpression();
 	consumeToken(TOKEN_RIGHT_PAREN, "'(' expected");
 }
 
-static void parseNumber(){
+static void parseNumber(bool canAssign){
 	double value = strtod(parser.previousToken.start, NULL);
 	emitConstant(NUMBER(value));
 }
 
-static void parseString(){
+static void parseString(bool canAssign){
 	emitConstant(OBJECT(makeStringObject(parser.previousToken.start+1, parser.previousToken.length-2)));
 }
 
-static void parseLiteral(){
+static void parseLiteral(bool canAssign){
 	switch (parser.previousToken.type){
 		case TOKEN_TRUE:
 			emitByte(OP_TRUE);
@@ -136,7 +197,20 @@ static void parseLiteral(){
 	}
 }
 
-static void parseUnary(){
+static void parseIdentifier(bool canAssign){
+
+	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+	uint8_t index = addConstantAndCheckLimit(value);
+	if (canAssign && matchToken(TOKEN_EQUAL)){
+		parseExpression();
+		emitBytes(OP_SET_GLOBAL, index);
+	} else {
+		emitBytes(OP_GET_GLOBAL, index);
+	}
+
+}
+
+static void parseUnary(bool canAssign){
 	TokenType tokenType = parser.previousToken.type;
 	parsePrecedence(PREC_UNARY);
 
@@ -160,7 +234,7 @@ static ParseRow* getParseRow(TokenType type){
 	return &(rules[type]);
 }
 
-static void parseBinary(){
+static void parseBinary(bool canAssign){
 	TokenType type = parser.previousToken.type;
 	ParseRow* parseRow = getParseRow(type);	
 	parsePrecedence((Precedence) (parseRow->level+1));
@@ -206,13 +280,26 @@ static void parsePrecedence(Precedence precedence){
 	advanceToken();
 	Token token = parser.previousToken;
 	parseFn prefix = (getParseRow(token.type))->prefixFunction;
-	(*prefix)();
+
+	bool canAssign = precedence <= PREC_ASSIGN;
+
+	if (prefix != NULL) (*prefix)(canAssign);
+	else {
+		errorAtPreviousToken("Invalid target");
+		return;
+	}
 
 	while (getParseRow(parser.currentToken.type)->level >= precedence){
 		advanceToken();
 		parseFn infix = (getParseRow(parser.previousToken.type))->infixFunction;
-		(*infix)();
+		if (infix != NULL) (*infix)(canAssign);
+		else {
+			errorAtPreviousToken("Invalid target");
+			return;
+		}
 	}
+
+	if (canAssign && matchToken(TOKEN_EQUAL)) errorAtPreviousToken("Invalid assignment target.");
 
 }
 // Token handling functions
@@ -235,6 +322,13 @@ static void consumeToken(TokenType type, char * message){
 	}
 }
 
+static bool matchToken(TokenType type){
+	if (parser.currentToken.type == type){
+		advanceToken();
+		return true;
+	}
+	return false;
+}
 
 // Bytecode emitting function prototypes
 
@@ -250,13 +344,18 @@ static void emitBytes(uint8_t byte1, uint8_t byte2){
 
 static void emitConstant(Value value){
 	emitByte(OP_CONSTANT);
+	int index = addConstantAndCheckLimit(value);
+	emitByte((uint8_t) index);
+}
+
+static uint8_t addConstantAndCheckLimit(Value value){
 	int index = addConstant(currentChunk(), value);
 	if (index > UINT8_MAX){
 		// error
-		errorAtPreviousToken("Too many constants in one chunk");
+		errorAtPreviousToken("Too many values in one chunk");
 		index=0;
 	}
-	emitByte((uint8_t) index);
+	return index;
 }
 
 static void endCompiler(){
@@ -302,4 +401,31 @@ static void error(Token token, const char* message){
 
 	fprintf(stderr, ": %s\n", message);
 
+}
+
+static void synchronize(){
+
+	parser.panicMode = false;
+
+	while (parser.currentToken.type != TOKEN_EOF){
+
+		if (parser.previousToken.type == TOKEN_SEMICOLON) break;
+		switch (parser.currentToken.type){
+			
+			case TOKEN_CLASS:
+			case TOKEN_FUN:
+			case TOKEN_IF:
+			case TOKEN_WHILE:
+			case TOKEN_FOR:
+			case TOKEN_VAR:
+			case TOKEN_PRINT:
+			case TOKEN_RETURN:
+				return;
+
+			default:
+				break;
+		}
+		advanceToken();
+
+	}
 }

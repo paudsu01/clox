@@ -28,8 +28,22 @@ int disassembleInstruction(Chunk* chunk, int index){
 
 		case OP_CONSTANT:
 			printf("OP_CONSTANT\t");
-			index++;
-			handleConstantInstruction(chunk, index);
+			handleConstantInstruction(chunk, ++index);
+			break;
+
+		case OP_DEFINE_GLOBAL:
+			printf("OP_DEFINE_GLOBAL\t");
+			handleConstantInstruction(chunk, ++index);
+			break;
+
+		case OP_GET_GLOBAL:
+			printf("OP_GET_GLOBAL\t");
+			handleConstantInstruction(chunk, ++index);
+			break;
+
+		case OP_SET_GLOBAL:
+			printf("OP_SET_GLOBAL\t");
+			handleConstantInstruction(chunk, ++index);
 			break;
 
 		case OP_NOT:
@@ -78,6 +92,14 @@ int disassembleInstruction(Chunk* chunk, int index){
 
 		case OP_EQUAL:
 			printf("OP_EQUAL\n");
+			break;
+
+		case OP_PRINT:
+			printf("OP_PRINT\n");
+			break;
+
+		case OP_POP:
+			printf("OP_POP\n");
 			break;
 
 		default:

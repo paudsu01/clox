@@ -14,6 +14,7 @@ void initVM(){
 	vm.ip = NULL;
 	vm.objects = NULL;
 	initTable(&vm.strings);
+	initTable(&vm.globals);
 	resetStack();
 }
 
@@ -73,9 +74,13 @@ InterpreterResult runVM(){
 
 		uint8_t byte = READ_BYTE();
 		switch (byte){
-			case OP_RETURN:
+			case OP_PRINT:
 				printValue(pop());
 				printf("\n");
+				break;
+
+			case OP_POP:
+				pop();
 				break;
 
 			case OP_CONSTANT:
@@ -133,6 +138,41 @@ InterpreterResult runVM(){
 				push(BOOLEAN(checkIfValuesEqual(pop(), pop())));
 				break;
 
+			case OP_DEFINE_GLOBAL:
+				{
+					value = READ_CONSTANT();
+					ObjectString* objString = AS_STRING_OBJ(value);
+					tableAdd(&vm.globals, objString, pop());
+				}
+				break;
+
+			case OP_GET_GLOBAL:
+				{
+					value = READ_CONSTANT();
+					ObjectString* objString = AS_STRING_OBJ(value);
+					if (tableHas(&vm.globals, objString)){
+						push(tableGet(&vm.globals, objString));
+
+					} else {
+						runtimeError("Undefined variable '%s'", objString->string) ;
+						return RUNTIME_ERROR;
+					}
+				}
+				break;
+
+			case OP_SET_GLOBAL:
+				{
+					value = READ_CONSTANT();
+					ObjectString* objString = AS_STRING_OBJ(value);
+					if (tableHas(&vm.globals, objString)){
+						tableAdd(&vm.globals, objString, peek(0));
+					} else {
+						runtimeError("Undefined variable '%s'", objString->string) ;
+						return RUNTIME_ERROR;
+					}
+				}
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}
@@ -148,6 +188,7 @@ InterpreterResult runVM(){
 void freeVM(){
 	freeObjects();
 	freeTable(&vm.strings);
+	freeTable(&vm.globals);
 	initVM();
 }
 
@@ -176,14 +217,15 @@ Object* concatenate(){
 //Error handling functions
 void runtimeError(char* format, ...){
 	va_list ap;
+
+	int index = vm.ip - 1 - vm.chunk->code;
+	int line = vm.chunk->lines[index];
+	fprintf(stderr, "line [%d] : ", line);
+
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
-
-	int index = vm.ip - 1 - vm.chunk->code;
-	int line = vm.chunk->lines[index];
-	fprintf(stderr, "line [%d] in script\n", line);
 	resetStack();
 }
 

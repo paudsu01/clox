@@ -19,6 +19,7 @@ typedef struct{
 	Value stack[STACK_MAX_SIZE];
 	Object* objects;
 	Table strings;
+	Table globals;
 } VM;
 
 // function prototypes

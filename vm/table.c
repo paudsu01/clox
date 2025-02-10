@@ -54,6 +54,8 @@ Entry* tableFind(Entry* initialEntry, int capacity, ObjectString* key){
 }
 
 bool tableHas(Table* table, ObjectString* key){
+	if (table->capacity == 0) return false;
+
 	Entry* entry = tableFind(table->entries, table->capacity, key);
 	return (entry->key == NULL) ? false : true;
 }
