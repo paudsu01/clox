@@ -160,6 +160,19 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_SET_GLOBAL:
+				{
+					value = READ_CONSTANT();
+					ObjectString* objString = AS_STRING_OBJ(value);
+					if (tableHas(&vm.globals, objString)){
+						tableAdd(&vm.globals, objString, peek(0));
+					} else {
+						runtimeError("Undefined variable '%s'", objString->string) ;
+						return RUNTIME_ERROR;
+					}
+				}
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}

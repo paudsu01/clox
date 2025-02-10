@@ -201,7 +201,12 @@ static void parseIdentifier(){
 
 	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
 	uint8_t index = addConstantAndCheckLimit(value);
-	emitBytes(OP_GET_GLOBAL, index);
+	if (matchToken(TOKEN_EQUAL)){
+		parseExpression();
+		emitBytes(OP_SET_GLOBAL, index);
+	} else {
+		emitBytes(OP_GET_GLOBAL, index);
+	}
 
 }
 
