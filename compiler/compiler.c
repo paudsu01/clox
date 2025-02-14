@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "../common.h"
 
 #include "compiler.h"
@@ -31,6 +32,7 @@ static void emitReturn();
 static void emitConstant(Value);
 static uint8_t addConstantAndCheckLimit(Value value);
 static Chunk* currentChunk();
+static int getLocalDepth(Token);
 
 // Error handling function prototypes
 static void errorAtCurrentToken(const char*);
@@ -246,15 +248,40 @@ static void parseLiteral(bool canAssign){
 	}
 }
 
+static int getLocalDepth(Token token){
+	// search if any such token in compiler locals array
+	for (int i=(currentCompiler->currentLocalsCount -1); i>=0; i--){
+		Local* pLocal = &(currentCompiler->locals[i]);
+		Token* secondToken = &(pLocal->name);
+		if (secondToken->length == token.length && memcmp(secondToken->start, token.start, token.length) == 0){
+			return pLocal->depth;	
+		}
+	}
+	return -1;
+}
+
 static void parseIdentifier(bool canAssign){
 
-	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
-	uint8_t index = addConstantAndCheckLimit(value);
+	int index = getLocalDepth(parser.previousToken);
+	uint8_t set_op, get_op;
+	if (index == -1){
+		// Global variable
+		set_op = OP_SET_GLOBAL; 
+		get_op = OP_GET_GLOBAL; 
+		Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+		index = addConstantAndCheckLimit(value);
+
+	} else{
+		// Local variable
+		set_op = OP_SET_LOCAL; 
+		get_op = OP_GET_LOCAL; 
+	}
+
 	if (canAssign && matchToken(TOKEN_EQUAL)){
 		parseExpression();
-		emitBytes(OP_SET_GLOBAL, index);
+		emitBytes(set_op, index);
 	} else {
-		emitBytes(OP_GET_GLOBAL, index);
+		emitBytes(get_op, index);
 	}
 
 }
