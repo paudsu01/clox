@@ -11,12 +11,16 @@
 
 // Variables
 Chunk* compilingChunk;
+Compiler* currentCompiler;
 
 // Function prototypes
 
 static void consumeToken(TokenType, char*);
 static bool matchToken(TokenType);
+static bool checkToken(TokenType);
 static void advanceToken();
+static void beginScope();
+static void endScope();
 
 // Bytecode emitting function prototypes
 
@@ -40,6 +44,7 @@ static void parseVarDeclaration();
 static void parseStatement();
 static void parsePrintStatement();
 static void parseExpressionStatement();
+static void parseBlockStatement();
 
 // pratt parsing functions
 static ParseRow* getParseRow(TokenType);
@@ -108,7 +113,7 @@ bool compile(const char* source, Chunk* chunk){
 	Compiler compiler;
 
 	initScanner(source);
-	initCompiler(&compiler);
+	initCompiler(currentCompiler = &compiler);
 
 	advanceToken();
 
@@ -122,6 +127,7 @@ bool compile(const char* source, Chunk* chunk){
 
 // parsing declaration/statements
 
+// declaration -> varDecl | statement;
 static void parseDeclaration(){
 	if (matchToken(TOKEN_VAR)) parseVarDeclaration();
 	else parseStatement();
@@ -131,6 +137,7 @@ static void parseDeclaration(){
 	}
 }
 
+// varDecl -> "var" IDENTIFIER ("=" expression)? ";"
 static void parseVarDeclaration(){
 	// make Lox string with current token and add it to chunk's constant table
 	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
@@ -148,20 +155,45 @@ static void parseVarDeclaration(){
 	emitBytes(OP_DEFINE_GLOBAL, index);
 }
 
+// statement -> printStatement | block | exprStatement
 static void parseStatement(){
 	if (matchToken(TOKEN_PRINT)){
 		parsePrintStatement();
+	} else if (matchToken(TOKEN_LEFT_BRACE)){
+		parseBlockStatement();
 	} else{
 		parseExpressionStatement();
 	}
 }
 
+static void beginScope(){
+	currentCompiler->currentScopeDepth++;
+}
+
+static void endScope(){
+	currentCompiler->currentScopeDepth--;
+}
+
+// block -> "{" (declaration)* "}"
+static void parseBlockStatement(){
+	beginScope();
+
+	while (!checkToken(TOKEN_EOF) && !checkToken(TOKEN_RIGHT_BRACE)){
+		parseDeclaration();
+	}
+
+	consumeToken(TOKEN_RIGHT_BRACE, "Expect '}' at end of block statement");
+	endScope();
+}
+
+// exprStatement -> expr ";"
 static void parseExpressionStatement(){
 	parseExpression();
 	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of expression");
 	emitByte(OP_POP);
 }
 
+// printStatement -> "print" expression ";"
 static void parsePrintStatement(){
 	parseExpression();
 	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of expression");
@@ -169,7 +201,6 @@ static void parsePrintStatement(){
 }
 
 // PrattParsing functions
-
 static void parseExpression(){
 	parsePrecedence(PREC_ASSIGN);
 }
@@ -328,6 +359,11 @@ static void consumeToken(TokenType type, char * message){
 	} else{
 		advanceToken();
 	}
+}
+
+static bool checkToken(TokenType type){
+	if (parser.currentToken.type == type) return true;
+	return false;
 }
 
 static bool matchToken(TokenType type){
