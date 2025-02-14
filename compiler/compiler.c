@@ -141,8 +141,17 @@ static void parseDeclaration(){
 static void parseVarDeclaration(){
 	// make Lox string with current token and add it to chunk's constant table
 	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
-	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
-	uint8_t index = addConstantAndCheckLimit(value);
+
+	uint8_t index;
+	if (currentCompiler->currentScopeDepth == 0){
+		// Global variable
+		Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+		index = addConstantAndCheckLimit(value);
+
+	} else {
+		// Local variable handling
+		currentCompiler->locals[currentCompiler->currentLocalsCount] = (Local) {.depth = currentCompiler->currentLocalsCount++, .name=parser.previousToken};
+	}
 	
 	if (matchToken(TOKEN_EQUAL)){
 		parseExpression();
@@ -151,8 +160,9 @@ static void parseVarDeclaration(){
 	}
 
 	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of var declaration");
+
 	// emit byte to add it to global hash table
-	emitBytes(OP_DEFINE_GLOBAL, index);
+	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
 }
 
 // statement -> printStatement | block | exprStatement
