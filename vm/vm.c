@@ -8,6 +8,7 @@
 #include <string.h>
 
 VM vm;
+extern Compiler* currentCompiler;
 
 void initVM(){
 	vm.chunk = NULL;
@@ -160,6 +161,20 @@ InterpreterResult runVM(){
 						runtimeError("Undefined variable '%s'", objString->string) ;
 						return RUNTIME_ERROR;
 					}
+				}
+				break;
+
+			case OP_GET_LOCAL:
+				{
+					uint8_t index = READ_BYTE();
+					push(*(vm.stack + index));
+				}
+				break;
+
+			case OP_SET_LOCAL:
+				{
+					uint8_t index = READ_BYTE();
+					*(vm.stack + index) = peek(0);
 				}
 				break;
 

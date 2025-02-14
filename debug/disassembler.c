@@ -3,6 +3,7 @@
 #include "../vm/vm.h"
 
 static void handleConstantInstruction(Chunk*,int);
+static void handleByteInstruction(Chunk*,int);
 
 void disassembleChunk(Chunk* chunk, char name[]){
 	printf("=== %s ===\n", name);
@@ -44,6 +45,16 @@ int disassembleInstruction(Chunk* chunk, int index){
 		case OP_SET_GLOBAL:
 			printf("OP_SET_GLOBAL\t");
 			handleConstantInstruction(chunk, ++index);
+			break;
+
+		case OP_GET_LOCAL:
+			printf("OP_GET_LOCAL\t");
+			handleByteInstruction(chunk, ++index);
+			break;
+
+		case OP_SET_LOCAL:
+			printf("OP_SET_LOCAL\t");
+			handleByteInstruction(chunk, ++index);
 			break;
 
 		case OP_NOT:
@@ -128,3 +139,7 @@ static void handleConstantInstruction(Chunk* chunk, int index){
 	printf("\n");
 }
 
+static void handleByteInstruction(Chunk* chunk, int index){
+	uint8_t slot = *((chunk->code)+index);
+	printf("%4d\n", slot);
+}
