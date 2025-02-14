@@ -13,6 +13,19 @@ typedef struct{
 	bool panicMode;
 } Parser;
 
+typedef struct{
+	Token name;
+	int depth;
+} Local;
+
+typedef struct{
+	Local locals[sizeof(uint8_t)+1];
+	int currentScopeDepth;
+	int currentLocalsCount;
+} Compiler;
+
+void initCompiler(Compiler*);
+
 Parser parser;
 
 typedef enum{

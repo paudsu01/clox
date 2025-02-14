@@ -96,12 +96,20 @@ ParseRow rules[] = {
   [TOKEN_EOF]           = {NULL,	     NULL,	   PREC_NONE},	
 };
 
+void initCompiler(Compiler* compiler){
+	compiler->currentScopeDepth = 0;
+	compiler->currentLocalsCount = 0;
+}
+
 bool compile(const char* source, Chunk* chunk){
 	parser.hadError = false;
 	parser.panicMode = false;
 	compilingChunk = chunk;
+	Compiler compiler;
 
 	initScanner(source);
+	initCompiler(&compiler);
+
 	advanceToken();
 
 	while (!matchToken(TOKEN_EOF)){

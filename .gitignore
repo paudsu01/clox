@@ -4,3 +4,4 @@
 **.sh
 !main.out
 prattParsing/
+main.out.dSYM/
