@@ -19,7 +19,7 @@ typedef struct{
 } Local;
 
 typedef struct{
-	Local locals[sizeof(uint8_t)+1];
+	Local locals[256];
 	int currentScopeDepth;
 	int currentLocalsCount;
 } Compiler;
@@ -27,6 +27,7 @@ typedef struct{
 void initCompiler(Compiler*);
 
 Parser parser;
+Compiler* currentCompiler;
 
 typedef enum{
 	PREC_NONE=0,

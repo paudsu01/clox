@@ -8,7 +8,6 @@
 #include <string.h>
 
 VM vm;
-extern Compiler* currentCompiler;
 
 void initVM(){
 	vm.chunk = NULL;

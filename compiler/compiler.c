@@ -12,7 +12,6 @@
 
 // Variables
 Chunk* compilingChunk;
-Compiler* currentCompiler;
 
 // Function prototypes
 
@@ -152,7 +151,7 @@ static void parseVarDeclaration(){
 
 	} else {
 		// Local variable handling
-		currentCompiler->locals[currentCompiler->currentLocalsCount] = (Local) {.depth = currentCompiler->currentLocalsCount++, .name=parser.previousToken};
+		currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = currentCompiler->currentScopeDepth, .name=parser.previousToken};
 	}
 	
 	if (matchToken(TOKEN_EQUAL)){
@@ -172,7 +171,9 @@ static void parseStatement(){
 	if (matchToken(TOKEN_PRINT)){
 		parsePrintStatement();
 	} else if (matchToken(TOKEN_LEFT_BRACE)){
+		beginScope();
 		parseBlockStatement();
+		endScope();
 	} else{
 		parseExpressionStatement();
 	}
@@ -184,18 +185,24 @@ static void beginScope(){
 
 static void endScope(){
 	currentCompiler->currentScopeDepth--;
+       	// remove all local variables from the stack that were declared in the scope that ended
+       	int i = currentCompiler->currentLocalsCount - 1;
+       	while (i >= 0 && currentCompiler->locals[i].depth > currentCompiler->currentScopeDepth){
+
+	       currentCompiler->currentLocalsCount--;
+	       emitByte(OP_POP);
+	       i--;
+
+	}
 }
 
 // block -> "{" (declaration)* "}"
 static void parseBlockStatement(){
-	beginScope();
-
 	while (!checkToken(TOKEN_EOF) && !checkToken(TOKEN_RIGHT_BRACE)){
 		parseDeclaration();
 	}
 
 	consumeToken(TOKEN_RIGHT_BRACE, "Expect '}' at end of block statement");
-	endScope();
 }
 
 // exprStatement -> expr ";"
@@ -254,7 +261,7 @@ static int getLocalDepth(Token token){
 		Local* pLocal = &(currentCompiler->locals[i]);
 		Token* secondToken = &(pLocal->name);
 		if (secondToken->length == token.length && memcmp(secondToken->start, token.start, token.length) == 0){
-			return pLocal->depth;	
+			return i;	
 		}
 	}
 	return -1;
