@@ -15,12 +15,19 @@ Chunk* compilingChunk;
 
 // Function prototypes
 
+// Token-handling functions
 static void consumeToken(TokenType, char*);
 static bool matchToken(TokenType);
 static bool checkToken(TokenType);
 static void advanceToken();
+
+// Helper functions
 static void beginScope();
 static void endScope();
+static Chunk* currentChunk();
+static int getLocalDepth(Token);
+static bool noDuplicateVarInCurrentScope();
+static bool identifiersEqual(Token*,Token*);
 
 // Bytecode emitting function prototypes
 
@@ -30,8 +37,6 @@ static void endCompiler();
 static void emitReturn();
 static void emitConstant(Value);
 static uint8_t addConstantAndCheckLimit(Value value);
-static Chunk* currentChunk();
-static int getLocalDepth(Token);
 
 // Error handling function prototypes
 static void errorAtCurrentToken(const char*);
@@ -151,7 +156,16 @@ static void parseVarDeclaration(){
 
 	} else {
 		// Local variable handling
-		currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = currentCompiler->currentScopeDepth, .name=parser.previousToken};
+		if (currentCompiler->currentLocalsCount > UINT8_T_LIMIT){
+			errorAtPreviousToken("Too many locals variables!");
+
+		} else{
+			if (noDuplicateVarInCurrentScope()) {
+				currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = currentCompiler->currentScopeDepth, .name=parser.previousToken};
+			} else{
+				errorAtPreviousToken("Local variable cannot be re-initialized!");
+			}
+		}
 	}
 	
 	if (matchToken(TOKEN_EQUAL)){
@@ -176,23 +190,6 @@ static void parseStatement(){
 		endScope();
 	} else{
 		parseExpressionStatement();
-	}
-}
-
-static void beginScope(){
-	currentCompiler->currentScopeDepth++;
-}
-
-static void endScope(){
-	currentCompiler->currentScopeDepth--;
-       	// remove all local variables from the stack that were declared in the scope that ended
-       	int i = currentCompiler->currentLocalsCount - 1;
-       	while (i >= 0 && currentCompiler->locals[i].depth > currentCompiler->currentScopeDepth){
-
-	       currentCompiler->currentLocalsCount--;
-	       emitByte(OP_POP);
-	       i--;
-
 	}
 }
 
@@ -253,18 +250,6 @@ static void parseLiteral(bool canAssign){
 			// Unreachable
 			break;
 	}
-}
-
-static int getLocalDepth(Token token){
-	// search if any such token in compiler locals array
-	for (int i=(currentCompiler->currentLocalsCount -1); i>=0; i--){
-		Local* pLocal = &(currentCompiler->locals[i]);
-		Token* secondToken = &(pLocal->name);
-		if (secondToken->length == token.length && memcmp(secondToken->start, token.start, token.length) == 0){
-			return i;	
-		}
-	}
-	return -1;
 }
 
 static void parseIdentifier(bool canAssign){
@@ -458,10 +443,6 @@ static void emitReturn(){
 	emitByte(OP_RETURN);
 
 }
-
-static Chunk* currentChunk(){
-	return compilingChunk;
-}
 // Error handling functions
 
 static void errorAtCurrentToken(const char* message){
@@ -516,4 +497,58 @@ static void synchronize(){
 		advanceToken();
 
 	}
+}
+
+// Helper functions
+
+static int getLocalDepth(Token token){
+	// search if any such token in compiler locals array
+	for (int i=(currentCompiler->currentLocalsCount -1); i>=0; i--){
+		Local* pLocal = &(currentCompiler->locals[i]);
+		Token* secondToken = &(pLocal->name);
+		if (identifiersEqual(&token, secondToken)){
+			return i;	
+		}
+	}
+	return -1;
+}
+
+static Chunk* currentChunk(){
+	return compilingChunk;
+}
+
+static void beginScope(){
+	currentCompiler->currentScopeDepth++;
+}
+
+static void endScope(){
+	currentCompiler->currentScopeDepth--;
+       	// remove all local variables from the stack that were declared in the scope that ended
+       	int i = currentCompiler->currentLocalsCount - 1;
+       	while (i >= 0 && currentCompiler->locals[i].depth > currentCompiler->currentScopeDepth){
+
+	       currentCompiler->currentLocalsCount--;
+	       emitByte(OP_POP);
+	       i--;
+
+	}
+}
+
+static bool noDuplicateVarInCurrentScope(){
+	Token* token = &parser.previousToken;
+
+	for (int i=(currentCompiler->currentLocalsCount -1); i>=0; i--){
+		Local* pLocal = &(currentCompiler->locals[i]);
+		Token* secondToken = &(pLocal->name);
+
+		if (currentCompiler->currentScopeDepth == pLocal->depth && identifiersEqual(token, secondToken)){
+			return false;	
+		}
+	}
+	return true;
+}
+
+static bool identifiersEqual(Token* token1, Token* token2){
+		if (token1->length == token2->length && memcmp(token1->start, token2->start, token1->length) == 0) return true;
+		return false;
 }

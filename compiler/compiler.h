@@ -4,6 +4,7 @@
 #include "../vm/vm.h"
 #include "../scanner/token.h"
 
+
 bool compile(const char*, Chunk*);
 
 typedef struct{
@@ -19,7 +20,7 @@ typedef struct{
 } Local;
 
 typedef struct{
-	Local locals[256];
+	Local locals[UINT8_T_LIMIT+1];
 	int currentScopeDepth;
 	int currentLocalsCount;
 } Compiler;
