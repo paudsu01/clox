@@ -28,6 +28,7 @@ static Chunk* currentChunk();
 static int getLocalDepth(Token);
 static bool noDuplicateVarInCurrentScope();
 static bool identifiersEqual(Token*,Token*);
+static void markInitialized();
 
 // Bytecode emitting function prototypes
 
@@ -161,7 +162,7 @@ static void parseVarDeclaration(){
 
 		} else{
 			if (noDuplicateVarInCurrentScope()) {
-				currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = currentCompiler->currentScopeDepth, .name=parser.previousToken};
+				currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = -1, .name=parser.previousToken};
 			} else{
 				errorAtPreviousToken("Local variable cannot be re-initialized!");
 			}
@@ -178,6 +179,7 @@ static void parseVarDeclaration(){
 
 	// emit byte to add it to global hash table
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
+	else markInitialized();
 }
 
 // statement -> printStatement | block | exprStatement
@@ -507,6 +509,7 @@ static int getLocalDepth(Token token){
 		Local* pLocal = &(currentCompiler->locals[i]);
 		Token* secondToken = &(pLocal->name);
 		if (identifiersEqual(&token, secondToken)){
+			if (pLocal->depth == -1) errorAtPreviousToken("Can't read local variable in its own initializer");
 			return i;	
 		}
 	}
@@ -551,4 +554,8 @@ static bool noDuplicateVarInCurrentScope(){
 static bool identifiersEqual(Token* token1, Token* token2){
 		if (token1->length == token2->length && memcmp(token1->start, token2->start, token1->length) == 0) return true;
 		return false;
+}
+
+static void markInitialized(){
+	currentCompiler->locals[currentCompiler->currentLocalsCount-1].depth = currentCompiler->currentScopeDepth;
 }
