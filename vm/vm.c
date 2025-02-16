@@ -74,6 +74,9 @@ InterpreterResult runVM(){
 
 		uint8_t byte = READ_BYTE();
 		switch (byte){
+			case OP_RETURN:
+				break;
+
 			case OP_PRINT:
 				printValue(pop());
 				printf("\n");
@@ -157,6 +160,20 @@ InterpreterResult runVM(){
 						runtimeError("Undefined variable '%s'", objString->string) ;
 						return RUNTIME_ERROR;
 					}
+				}
+				break;
+
+			case OP_GET_LOCAL:
+				{
+					uint8_t index = READ_BYTE();
+					push(*(vm.stack + index));
+				}
+				break;
+
+			case OP_SET_LOCAL:
+				{
+					uint8_t index = READ_BYTE();
+					*(vm.stack + index) = peek(0);
 				}
 				break;
 

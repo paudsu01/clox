@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "../common.h"
 
 #include "compiler.h"
@@ -14,9 +15,20 @@ Chunk* compilingChunk;
 
 // Function prototypes
 
+// Token-handling functions
 static void consumeToken(TokenType, char*);
 static bool matchToken(TokenType);
+static bool checkToken(TokenType);
 static void advanceToken();
+
+// Helper functions
+static void beginScope();
+static void endScope();
+static Chunk* currentChunk();
+static int getLocalDepth(Token);
+static bool noDuplicateVarInCurrentScope();
+static bool identifiersEqual(Token*,Token*);
+static void markInitialized();
 
 // Bytecode emitting function prototypes
 
@@ -26,7 +38,6 @@ static void endCompiler();
 static void emitReturn();
 static void emitConstant(Value);
 static uint8_t addConstantAndCheckLimit(Value value);
-static Chunk* currentChunk();
 
 // Error handling function prototypes
 static void errorAtCurrentToken(const char*);
@@ -40,6 +51,7 @@ static void parseVarDeclaration();
 static void parseStatement();
 static void parsePrintStatement();
 static void parseExpressionStatement();
+static void parseBlockStatement();
 
 // pratt parsing functions
 static ParseRow* getParseRow(TokenType);
@@ -96,12 +108,20 @@ ParseRow rules[] = {
   [TOKEN_EOF]           = {NULL,	     NULL,	   PREC_NONE},	
 };
 
+void initCompiler(Compiler* compiler){
+	compiler->currentScopeDepth = 0;
+	compiler->currentLocalsCount = 0;
+}
+
 bool compile(const char* source, Chunk* chunk){
 	parser.hadError = false;
 	parser.panicMode = false;
 	compilingChunk = chunk;
+	Compiler compiler;
 
 	initScanner(source);
+	initCompiler(currentCompiler = &compiler);
+
 	advanceToken();
 
 	while (!matchToken(TOKEN_EOF)){
@@ -114,6 +134,7 @@ bool compile(const char* source, Chunk* chunk){
 
 // parsing declaration/statements
 
+// declaration -> varDecl | statement;
 static void parseDeclaration(){
 	if (matchToken(TOKEN_VAR)) parseVarDeclaration();
 	else parseStatement();
@@ -123,11 +144,30 @@ static void parseDeclaration(){
 	}
 }
 
+// varDecl -> "var" IDENTIFIER ("=" expression)? ";"
 static void parseVarDeclaration(){
 	// make Lox string with current token and add it to chunk's constant table
 	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
-	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
-	uint8_t index = addConstantAndCheckLimit(value);
+
+	uint8_t index;
+	if (currentCompiler->currentScopeDepth == 0){
+		// Global variable
+		Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+		index = addConstantAndCheckLimit(value);
+
+	} else {
+		// Local variable handling
+		if (currentCompiler->currentLocalsCount > UINT8_T_LIMIT){
+			errorAtPreviousToken("Too many locals variables!");
+
+		} else{
+			if (noDuplicateVarInCurrentScope()) {
+				currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = -1, .name=parser.previousToken};
+			} else{
+				errorAtPreviousToken("Local variable cannot be re-initialized!");
+			}
+		}
+	}
 	
 	if (matchToken(TOKEN_EQUAL)){
 		parseExpression();
@@ -136,24 +176,42 @@ static void parseVarDeclaration(){
 	}
 
 	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of var declaration");
+
 	// emit byte to add it to global hash table
-	emitBytes(OP_DEFINE_GLOBAL, index);
+	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
+	else markInitialized();
 }
 
+// statement -> printStatement | block | exprStatement
 static void parseStatement(){
 	if (matchToken(TOKEN_PRINT)){
 		parsePrintStatement();
+	} else if (matchToken(TOKEN_LEFT_BRACE)){
+		beginScope();
+		parseBlockStatement();
+		endScope();
 	} else{
 		parseExpressionStatement();
 	}
 }
 
+// block -> "{" (declaration)* "}"
+static void parseBlockStatement(){
+	while (!checkToken(TOKEN_EOF) && !checkToken(TOKEN_RIGHT_BRACE)){
+		parseDeclaration();
+	}
+
+	consumeToken(TOKEN_RIGHT_BRACE, "Expect '}' at end of block statement");
+}
+
+// exprStatement -> expr ";"
 static void parseExpressionStatement(){
 	parseExpression();
 	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of expression");
 	emitByte(OP_POP);
 }
 
+// printStatement -> "print" expression ";"
 static void parsePrintStatement(){
 	parseExpression();
 	consumeToken(TOKEN_SEMICOLON, "Expected ';' after end of expression");
@@ -161,7 +219,6 @@ static void parsePrintStatement(){
 }
 
 // PrattParsing functions
-
 static void parseExpression(){
 	parsePrecedence(PREC_ASSIGN);
 }
@@ -199,13 +256,26 @@ static void parseLiteral(bool canAssign){
 
 static void parseIdentifier(bool canAssign){
 
-	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
-	uint8_t index = addConstantAndCheckLimit(value);
+	int index = getLocalDepth(parser.previousToken);
+	uint8_t set_op, get_op;
+	if (index == -1){
+		// Global variable
+		set_op = OP_SET_GLOBAL; 
+		get_op = OP_GET_GLOBAL; 
+		Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+		index = addConstantAndCheckLimit(value);
+
+	} else{
+		// Local variable
+		set_op = OP_SET_LOCAL; 
+		get_op = OP_GET_LOCAL; 
+	}
+
 	if (canAssign && matchToken(TOKEN_EQUAL)){
 		parseExpression();
-		emitBytes(OP_SET_GLOBAL, index);
+		emitBytes(set_op, index);
 	} else {
-		emitBytes(OP_GET_GLOBAL, index);
+		emitBytes(get_op, index);
 	}
 
 }
@@ -322,6 +392,11 @@ static void consumeToken(TokenType type, char * message){
 	}
 }
 
+static bool checkToken(TokenType type){
+	if (parser.currentToken.type == type) return true;
+	return false;
+}
+
 static bool matchToken(TokenType type){
 	if (parser.currentToken.type == type){
 		advanceToken();
@@ -369,10 +444,6 @@ static void endCompiler(){
 static void emitReturn(){
 	emitByte(OP_RETURN);
 
-}
-
-static Chunk* currentChunk(){
-	return compilingChunk;
 }
 // Error handling functions
 
@@ -428,4 +499,63 @@ static void synchronize(){
 		advanceToken();
 
 	}
+}
+
+// Helper functions
+
+static int getLocalDepth(Token token){
+	// search if any such token in compiler locals array
+	for (int i=(currentCompiler->currentLocalsCount -1); i>=0; i--){
+		Local* pLocal = &(currentCompiler->locals[i]);
+		Token* secondToken = &(pLocal->name);
+		if (identifiersEqual(&token, secondToken)){
+			if (pLocal->depth == -1) errorAtPreviousToken("Can't read local variable in its own initializer");
+			return i;	
+		}
+	}
+	return -1;
+}
+
+static Chunk* currentChunk(){
+	return compilingChunk;
+}
+
+static void beginScope(){
+	currentCompiler->currentScopeDepth++;
+}
+
+static void endScope(){
+	currentCompiler->currentScopeDepth--;
+       	// remove all local variables from the stack that were declared in the scope that ended
+       	int i = currentCompiler->currentLocalsCount - 1;
+       	while (i >= 0 && currentCompiler->locals[i].depth > currentCompiler->currentScopeDepth){
+
+	       currentCompiler->currentLocalsCount--;
+	       emitByte(OP_POP);
+	       i--;
+
+	}
+}
+
+static bool noDuplicateVarInCurrentScope(){
+	Token* token = &parser.previousToken;
+
+	for (int i=(currentCompiler->currentLocalsCount -1); i>=0; i--){
+		Local* pLocal = &(currentCompiler->locals[i]);
+		Token* secondToken = &(pLocal->name);
+
+		if (currentCompiler->currentScopeDepth == pLocal->depth && identifiersEqual(token, secondToken)){
+			return false;	
+		}
+	}
+	return true;
+}
+
+static bool identifiersEqual(Token* token1, Token* token2){
+		if (token1->length == token2->length && memcmp(token1->start, token2->start, token1->length) == 0) return true;
+		return false;
+}
+
+static void markInitialized(){
+	currentCompiler->locals[currentCompiler->currentLocalsCount-1].depth = currentCompiler->currentScopeDepth;
 }

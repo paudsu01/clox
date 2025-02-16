@@ -4,6 +4,7 @@
 #include "../vm/vm.h"
 #include "../scanner/token.h"
 
+
 bool compile(const char*, Chunk*);
 
 typedef struct{
@@ -13,7 +14,21 @@ typedef struct{
 	bool panicMode;
 } Parser;
 
+typedef struct{
+	Token name;
+	int depth;
+} Local;
+
+typedef struct{
+	Local locals[UINT8_T_LIMIT+1];
+	int currentScopeDepth;
+	int currentLocalsCount;
+} Compiler;
+
+void initCompiler(Compiler*);
+
 Parser parser;
+Compiler* currentCompiler;
 
 typedef enum{
 	PREC_NONE=0,
