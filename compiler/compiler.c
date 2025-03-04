@@ -61,6 +61,8 @@ static ParseRow* getParseRow(TokenType);
 static void parseExpression();
 static void parsePrecedence(Precedence);
 static void parseBinary(bool);
+static void parseAnd(bool);
+static void parseOr(bool);
 static void parseUnary(bool);
 static void parseNumber(bool);
 static void parseString(bool);
@@ -91,7 +93,7 @@ ParseRow rules[] = {
   [TOKEN_IDENTIFIER]    = {parseIdentifier,    NULL,	   PREC_NONE},	
   [TOKEN_STRING]        = {parseString,	     NULL,	   PREC_NONE},	
   [TOKEN_NUMBER]        = {parseNumber,	     NULL,	   PREC_NONE},	
-  [TOKEN_AND]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_AND]           = {NULL,	     parseAnd,	   PREC_AND},	
   [TOKEN_CLASS]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_ELSE]          = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_FALSE]         = {parseLiteral,     NULL,	   PREC_NONE},	
@@ -99,7 +101,7 @@ ParseRow rules[] = {
   [TOKEN_FUN]           = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_IF]            = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_NIL]           = {parseLiteral,     NULL,	   PREC_NONE},	
-  [TOKEN_OR]            = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_OR]            = {NULL,	     parseOr,	   PREC_OR},	
   [TOKEN_PRINT]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_RETURN]        = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_SUPER]         = {NULL,	     NULL,	   PREC_NONE},	
@@ -326,6 +328,22 @@ static void parseUnary(bool canAssign){
 		default:
 			break;
 	}
+}
+
+static void parseAnd(bool canAssign){
+	int jumpIndex = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+
+	parsePrecedence(PREC_AND);
+	patchJump(jumpIndex);
+}
+
+static void parseOr(bool canAssign){
+	int jumpIndex = emitJump(OP_JUMP_IF_TRUE);
+	emitByte(OP_POP);
+
+	parsePrecedence(PREC_OR);
+	patchJump(jumpIndex);
 }
 
 static ParseRow* getParseRow(TokenType type){
