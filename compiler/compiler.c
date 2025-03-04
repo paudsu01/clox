@@ -223,7 +223,7 @@ static void parsePrintStatement(){
 	emitByte(OP_PRINT);
 }
 
-// ifStatement -> "if" "(" expression ")" statement
+// ifStatement -> "if" "(" expression ")" statement ("else" statement)?
 static void parseIfStatement(){
 	consumeToken(TOKEN_LEFT_PAREN, "Expect '(' after if");
 	parseExpression();
@@ -238,6 +238,10 @@ static void parseIfStatement(){
 	// Use backpatching	
 	patchJump(index);
 	emitByte(OP_POP);
+	if (matchToken(TOKEN_ELSE)){
+		parseStatement();
+	}
+
 	patchJump(endIndex);
 
 }
