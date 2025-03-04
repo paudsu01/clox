@@ -35,7 +35,7 @@ static void markInitialized();
 static void emitByte(uint8_t);
 static void emitBytes(uint8_t, uint8_t);
 static int emitJump(uint8_t);
-static void patchJump(int);
+static void patchJump(int, uint8_t);
 static void endCompiler();
 static void emitReturn();
 static void emitConstant(Value);
@@ -53,6 +53,7 @@ static void parseVarDeclaration();
 static void parseStatement();
 static void parsePrintStatement();
 static void parseIfStatement();
+static void parseWhileStatement();
 static void parseExpressionStatement();
 static void parseBlockStatement();
 
@@ -187,7 +188,7 @@ static void parseVarDeclaration(){
 	else markInitialized();
 }
 
-// statement -> printStatement | block | exprStatement | ifStatement
+// statement -> printStatement | block | exprStatement | ifStatement | whileStatement
 static void parseStatement(){
 	if (matchToken(TOKEN_PRINT)){
 		parsePrintStatement();
@@ -197,6 +198,8 @@ static void parseStatement(){
 		endScope();
 	} else if (matchToken(TOKEN_IF)){
 		parseIfStatement();
+	} else if (matchToken(TOKEN_WHILE)){
+		parseWhileStatement();
 	} else{
 		parseExpressionStatement();
 	}
@@ -229,7 +232,7 @@ static void parsePrintStatement(){
 static void parseIfStatement(){
 	consumeToken(TOKEN_LEFT_PAREN, "Expect '(' after if");
 	parseExpression();
-	consumeToken(TOKEN_RIGHT_PAREN, "Expect '(' after if");
+	consumeToken(TOKEN_RIGHT_PAREN, "Expect ')' after if");
 	
 	int index = emitJump(OP_JUMP_IF_FALSE);
 	emitByte(OP_POP);
@@ -238,14 +241,33 @@ static void parseIfStatement(){
 	int endIndex = emitJump(OP_JUMP);
 
 	// Use backpatching	
-	patchJump(index);
+	patchJump(index, OP_JUMP_IF_FALSE);
 	emitByte(OP_POP);
 	if (matchToken(TOKEN_ELSE)){
 		parseStatement();
 	}
 
-	patchJump(endIndex);
+	patchJump(endIndex, OP_JUMP);
+}
 
+// whileStatement -> "while" "(" expression ")" statement
+static void parseWhileStatement(){
+	consumeToken(TOKEN_LEFT_PAREN, "Expect '(' after while");
+	int conditionalIndex = currentChunk()->count;
+
+	parseExpression();
+	consumeToken(TOKEN_RIGHT_PAREN, "Expect ')' after while");
+
+	int endJumpIndex = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+
+	parseStatement();
+	emitByte(OP_LOOP);
+	patchJump(conditionalIndex, OP_LOOP);
+	// jump back
+
+	patchJump(endJumpIndex, OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
 }
 
 // PrattParsing functions
@@ -335,7 +357,7 @@ static void parseAnd(bool canAssign){
 	emitByte(OP_POP);
 
 	parsePrecedence(PREC_AND);
-	patchJump(jumpIndex);
+	patchJump(jumpIndex, OP_JUMP_IF_FALSE);
 }
 
 static void parseOr(bool canAssign){
@@ -343,7 +365,7 @@ static void parseOr(bool canAssign){
 	emitByte(OP_POP);
 
 	parsePrecedence(PREC_OR);
-	patchJump(jumpIndex);
+	patchJump(jumpIndex, OP_JUMP_IF_TRUE);
 }
 
 static ParseRow* getParseRow(TokenType type){
@@ -469,18 +491,25 @@ static int emitJump(uint8_t opcode){
 	return currentChunk()->count - 2;
 }
 
-static void patchJump(int index){
-	// Patch the jump instruction to jump to the current chunk's count index
+static void patchJump(int index, uint8_t opcode){
+	
 	int currentIndex = currentChunk()->count;
 	int difference = currentIndex - index;
 	if (difference > UINT16_T_LIMIT){
 		// raise error if index is higher than UINT16_MAX
 		errorAtPreviousToken("Too much code to jump over");
 	} else{
+		// Patch the jump instruction to jump to the current chunk's count index
 		uint8_t diff1 = (uint8_t) difference & 255;
 		uint8_t diff2 = difference >> 8;
-		*(currentChunk()->code + index) = diff2;
-		*(currentChunk()->code + index + 1) = diff1;
+
+		if (opcode == OP_LOOP){
+			emitByte(diff2);
+			emitByte(diff1);
+		} else{
+			*(currentChunk()->code + index) = diff2;
+			*(currentChunk()->code + index + 1) = diff1;
+		}
 	}
 }
 

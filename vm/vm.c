@@ -213,6 +213,13 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_LOOP:
+				{
+					uint16_t offset = READ_2BYTES();
+					mutate_vm_ip(OP_LOOP, offset);
+				}
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}
@@ -269,6 +276,9 @@ void mutate_vm_ip(uint8_t opcode, uint16_t offset){
 			}
 		case OP_JUMP:
 			vm.ip+=offset;
+			break;
+		case OP_LOOP:
+			vm.ip-=offset;
 			break;
 	}
 
