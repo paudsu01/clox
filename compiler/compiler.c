@@ -54,6 +54,7 @@ static void parseStatement();
 static void parsePrintStatement();
 static void parseIfStatement();
 static void parseWhileStatement();
+static void parseForStatement();
 static void parseExpressionStatement();
 static void parseBlockStatement();
 
@@ -188,7 +189,7 @@ static void parseVarDeclaration(){
 	else markInitialized();
 }
 
-// statement -> printStatement | block | exprStatement | ifStatement | whileStatement
+// statement -> printStatement | block | exprStatement | ifStatement | whileStatement | forStatement
 static void parseStatement(){
 	if (matchToken(TOKEN_PRINT)){
 		parsePrintStatement();
@@ -200,6 +201,8 @@ static void parseStatement(){
 		parseIfStatement();
 	} else if (matchToken(TOKEN_WHILE)){
 		parseWhileStatement();
+	} else if (matchToken(TOKEN_FOR)){
+		parseForStatement();
 	} else{
 		parseExpressionStatement();
 	}
@@ -250,6 +253,44 @@ static void parseIfStatement(){
 	patchJump(endIndex, OP_JUMP);
 }
 
+// forStatement -> "for" "(" ";" ";" ")" statement;
+static void parseForStatement(){
+	int jumpIndex = -1; 
+
+	beginScope();
+	consumeToken(TOKEN_LEFT_PAREN, "Expect '(' after for");
+	
+	if (!matchToken(TOKEN_SEMICOLON)){
+		// initializer optional
+		if (matchToken(TOKEN_VAR)) parseVarDeclaration();
+		else parseExpressionStatement();
+	}
+
+	int conditionalIndex = currentChunk()->count;
+	if (!checkToken(TOKEN_SEMICOLON)){
+		// condition clause
+		parseExpression();
+		jumpIndex = emitJump(OP_JUMP_IF_FALSE);
+		emitByte(OP_POP);
+	}
+	consumeToken(TOKEN_SEMICOLON, "Expect ';' after 'for' loop's condition clause");
+
+	if (!checkToken(TOKEN_SEMICOLON)){
+
+	}
+	consumeToken(TOKEN_RIGHT_PAREN, "Expect ')' after for");
+
+	parseStatement();
+	// increment clause needs to be done if increment clause is present
+	emitByte(OP_LOOP);
+	patchJump(conditionalIndex, OP_LOOP);
+
+	patchJump(jumpIndex, OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+
+	endScope();
+}
+
 // whileStatement -> "while" "(" expression ")" statement
 static void parseWhileStatement(){
 	consumeToken(TOKEN_LEFT_PAREN, "Expect '(' after while");
@@ -264,8 +305,8 @@ static void parseWhileStatement(){
 	parseStatement();
 	emitByte(OP_LOOP);
 	patchJump(conditionalIndex, OP_LOOP);
-	// jump back
 
+	// jump back
 	patchJump(endJumpIndex, OP_JUMP_IF_FALSE);
 	emitByte(OP_POP);
 }
