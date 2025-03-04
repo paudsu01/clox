@@ -43,6 +43,8 @@ InterpreterResult runVM(){
 	
 	#define READ_BYTE() *(vm.ip++)
 	#define READ_CONSTANT() (vm.chunk->constants).values[READ_BYTE()]
+	#define READ_2BYTES() (((uint16_t) *vm.ip) << 8) + *(vm.ip+1)
+		
 
 	#define BYTES_LEFT_TO_EXECUTE() (vm.ip < (vm.chunk->code + vm.chunk->count))
 
@@ -190,6 +192,25 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_JUMP_IF_FALSE:
+				{
+					uint16_t offset = READ_2BYTES();
+					if (trueOrFalse(peek(0)) == false){
+						vm.ip += offset;
+					} else{
+						vm.ip += 2;
+					}
+					
+				}
+				break;
+
+			case OP_JUMP:
+				{
+					uint16_t offset = READ_2BYTES();
+					vm.ip += offset;
+				}
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}
@@ -198,6 +219,7 @@ InterpreterResult runVM(){
 
 	#undef BINARY_OPERATION
 	#undef READ_BYTE
+	#undef READ_2BYTES
 	#undef READ_CONSTANT
 	#undef BYTES_LEFT_TO_EXECUTE
 }
