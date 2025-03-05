@@ -4,6 +4,7 @@
 
 static void handleConstantInstruction(Chunk*,int);
 static void handleByteInstruction(Chunk*,int);
+static void handleJumpInstruction(uint8_t, Chunk*,int);
 
 void disassembleChunk(Chunk* chunk, char name[]){
 	printf("=== %s ===\n", name);
@@ -113,6 +114,25 @@ int disassembleInstruction(Chunk* chunk, int index){
 			printf("OP_POP\n");
 			break;
 
+		case OP_JUMP:
+			printf("OP_JUMP\t");
+			handleJumpInstruction(OP_JUMP, chunk, index = index + 2);
+			break;
+
+		case OP_JUMP_IF_FALSE:
+			printf("OP_JUMP_IF_FALSE\t");
+			handleJumpInstruction(OP_JUMP_IF_FALSE, chunk, index = index + 2);
+			break;
+
+		case OP_JUMP_IF_TRUE:
+			printf("OP_JUMP_IF_TRUE\t");
+			handleJumpInstruction(OP_JUMP_IF_TRUE, chunk, index = index + 2);
+		
+		case OP_LOOP:
+			printf("OP_LOOP\t");
+			handleJumpInstruction(OP_LOOP, chunk, index = index + 2);
+			break;
+
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;
@@ -142,4 +162,13 @@ static void handleConstantInstruction(Chunk* chunk, int index){
 static void handleByteInstruction(Chunk* chunk, int index){
 	uint8_t slot = *((chunk->code)+index);
 	printf("%4d\n", slot);
+}
+
+static void handleJumpInstruction(uint8_t opcode, Chunk* chunk, int index){
+	uint16_t jump = (uint16_t) *(chunk->code + (index-1));
+	jump = (jump << 8) + *(chunk->code + (index));
+	printf("%5d -->\t", jump);
+
+	index = (opcode == OP_LOOP) ? index-jump-1 : index+jump-1;
+	disassembleInstruction(chunk, index);
 }

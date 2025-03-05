@@ -31,6 +31,7 @@ InterpreterResult runVM();
 
 bool trueOrFalse(Value);
 Object* concatenate();
+void mutate_vm_ip(uint8_t, uint16_t);
 
 void runtimeError(char*,...);
 
