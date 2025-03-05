@@ -30,7 +30,11 @@ void freeValueArray(ValueArray* array){
 void printValue(Value value){
 	switch(value.type){
 		case TYPE_NUM:
-			printf("%lf", AS_NUM(value));
+			{
+				double val = AS_NUM(value);
+				if (fmod(val, 1) == 0) printf("%d", (int) AS_NUM(value));
+				else printf("%lf", AS_NUM(value));
+			}
 			break;
 		case TYPE_BOOL:
 			printf("%s", (AS_BOOL(value) == true) ? "true" : "false");

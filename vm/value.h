@@ -2,6 +2,7 @@
 #define VALUE_H
 
 #include <stdbool.h>
+#include <math.h>
 #include "object.h"
 
 // enum declaration
