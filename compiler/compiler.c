@@ -255,7 +255,8 @@ static void parseIfStatement(){
 
 // forStatement -> "for" "(" ";" ";" ")" statement;
 static void parseForStatement(){
-	int jumpIndex = -1; 
+	int endOfFor = -1, bodyIndex = -1;
+	int conditionalIndex = -1, incrementIndex = -1;
 
 	beginScope();
 	consumeToken(TOKEN_LEFT_PAREN, "Expect '(' after for");
@@ -266,27 +267,40 @@ static void parseForStatement(){
 		else parseExpressionStatement();
 	}
 
-	int conditionalIndex = currentChunk()->count;
+	conditionalIndex = currentChunk()->count;
 	if (!checkToken(TOKEN_SEMICOLON)){
 		// condition clause
 		parseExpression();
-		jumpIndex = emitJump(OP_JUMP_IF_FALSE);
+		endOfFor = emitJump(OP_JUMP_IF_FALSE);
 		emitByte(OP_POP);
-	}
+	} 
+
+	bodyIndex = emitJump(OP_JUMP);
+	incrementIndex = currentChunk()->count;
+
 	consumeToken(TOKEN_SEMICOLON, "Expect ';' after 'for' loop's condition clause");
 
-	if (!checkToken(TOKEN_SEMICOLON)){
-
+	if (!checkToken(TOKEN_RIGHT_PAREN)){
+		// increment clause
+		parseExpression();
+		emitByte(OP_POP);
 	}
-	consumeToken(TOKEN_RIGHT_PAREN, "Expect ')' after for");
 
-	parseStatement();
-	// increment clause needs to be done if increment clause is present
 	emitByte(OP_LOOP);
 	patchJump(conditionalIndex, OP_LOOP);
 
-	patchJump(jumpIndex, OP_JUMP_IF_FALSE);
-	emitByte(OP_POP);
+	consumeToken(TOKEN_RIGHT_PAREN, "Expect ')' after for");
+
+	patchJump(bodyIndex, OP_JUMP);
+	parseStatement();
+
+	emitByte(OP_LOOP);
+	patchJump(incrementIndex, OP_LOOP);
+
+	if (endOfFor != -1) {
+		patchJump(endOfFor, OP_JUMP_IF_FALSE);
+		emitByte(OP_POP);
+	}
 
 	endScope();
 }
