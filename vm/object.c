@@ -47,6 +47,16 @@ ObjectString* allocateStringObject(char* string, int length){
 	}
 }
 
+ObjectFunction* makeNewFunctionObject(){
+
+	ObjectFunction* objFunction = (ObjectFunction *) allocateObject(sizeof(ObjectFunction), OBJECT_FUNCTION);
+	objFunction->name = NULL;
+	objFunction->arity = 0;
+	objFunction->chunk = (Chunk*) reallocate(NULL,0,sizeof(Chunk));
+	initChunk(objFunction->chunk);
+
+	return objFunction;
+}
 
 uint32_t jenkinsHash(const char* key, int length){
 	// Jenkins hash function

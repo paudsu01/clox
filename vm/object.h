@@ -38,6 +38,7 @@ typedef struct{
 
 ObjectString* makeStringObject(const char*,int);
 ObjectString* allocateStringObject(char*, int);
+ObjectFunction* makeNewFunctionObject();
 Object* allocateObject(int,ObjectType);
 uint32_t jenkinsHash(const char*,int);
 
