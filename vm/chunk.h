@@ -34,7 +34,7 @@ typedef enum {
 } OPCode;
 
 // Struct
-typedef struct{
+typedef struct Chunk{
 	int capacity;
 	int count;
 	uint8_t *code;		
