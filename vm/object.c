@@ -47,12 +47,13 @@ ObjectString* allocateStringObject(char* string, int length){
 	}
 }
 
-ObjectFunction* makeNewFunctionObject(){
+ObjectFunction* makeNewFunctionObject(FunctionType type){
 
 	ObjectFunction* objFunction = (ObjectFunction *) allocateObject(sizeof(ObjectFunction), OBJECT_FUNCTION);
 	objFunction->name = NULL;
 	objFunction->arity = 0;
 	objFunction->chunk = (Chunk*) reallocate(NULL,0,sizeof(Chunk));
+	objFunction->type = type;
 	initChunk(objFunction->chunk);
 
 	return objFunction;

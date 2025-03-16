@@ -55,9 +55,16 @@ void printObject(Object* object){
 		case OBJECT_STRING:
 			printf("\"%s\"", ((ObjectString*)object)->string);
 			break;
+		case OBJECT_FUNCTION:
+			printFunction((ObjectFunction *)object);
+			break;
 		default:
 			break;
 	}
+}
+
+void printFunction(ObjectFunction* function) {
+	printf("<function: %.*s", function->name->length, function->name->string);
 }
 
 bool checkIfValuesEqual(Value val1, Value val2){
@@ -75,12 +82,19 @@ bool checkIfObjectsEqual(Object* obj1, Object* obj2){
 	switch(obj1->objectType){
 		case OBJECT_STRING:
 			{
+				if (obj2->objectType != OBJECT_STRING) return false;
 				ObjectString* objStr1 = ((ObjectString*)obj1);
 				ObjectString* objStr2 = ((ObjectString*)obj2);
 				if (objStr1->length != objStr2->length) return false;
 				return (memcmp(objStr1->string, objStr2->string, objStr1->length) == 0) ? true : false;
 			}
+		case OBJECT_FUNCTION:
+
+				if (obj2->objectType != OBJECT_FUNCTION) return false;
+				ObjectFunction* objFunc1 = ((ObjectFunction*)obj1);
+				ObjectFunction* objFunc2 = ((ObjectFunction*)obj2);
+				return (objFunc1->arity == objFunc2->arity && objFunc1->chunk == objFunc2->chunk) ? true : false;
 		default:
-			return true;
+			return false;
 	}
 }
