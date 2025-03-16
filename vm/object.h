@@ -34,12 +34,11 @@ typedef struct{
 	int arity;
 	ObjectString* name;
 	Chunk* chunk;
-	FunctionType type;
 } ObjectFunction;
 
 ObjectString* makeStringObject(const char*,int);
 ObjectString* allocateStringObject(char*, int);
-ObjectFunction* makeNewFunctionObject(FunctionType);
+ObjectFunction* makeNewFunctionObject();
 Object* allocateObject(int,ObjectType);
 uint32_t jenkinsHash(const char*,int);
 

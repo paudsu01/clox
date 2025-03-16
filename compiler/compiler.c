@@ -10,9 +10,6 @@
 #include "../debug/disassembler.h"
 #endif
 
-// Variables
-Chunk* compilingChunk;
-
 // Function prototypes
 
 // Token-handling functions
@@ -36,7 +33,7 @@ static void emitByte(uint8_t);
 static void emitBytes(uint8_t, uint8_t);
 static int emitJump(uint8_t);
 static void patchJump(int, uint8_t);
-static void endCompiler();
+static ObjectFunction* endCompiler();
 static void emitReturn();
 static void emitConstant(Value);
 static uint8_t addConstantAndCheckLimit(Value value);
@@ -115,19 +112,21 @@ ParseRow rules[] = {
   [TOKEN_EOF]           = {NULL,	     NULL,	   PREC_NONE},	
 };
 
-void initCompiler(Compiler* compiler){
+void initCompiler(Compiler* compiler, FunctionType type){
 	compiler->currentScopeDepth = 0;
 	compiler->currentLocalsCount = 0;
+
+	compiler->type = type;
+	compiler->function = makeNewFunctionObject();
 }
 
-bool compile(const char* source, Chunk* chunk){
+ObjectFunction* compile(const char* source){
 	parser.hadError = false;
 	parser.panicMode = false;
-	compilingChunk = chunk;
 	Compiler compiler;
 
 	initScanner(source);
-	initCompiler(currentCompiler = &compiler);
+	initCompiler(currentCompiler = &compiler, FUNCTION_MAIN);
 
 	advanceToken();
 
@@ -135,8 +134,8 @@ bool compile(const char* source, Chunk* chunk){
 		parseDeclaration();
 	}
 
-	endCompiler();
-	return !parser.hadError;
+	ObjectFunction* objFunction = endCompiler();
+	return (parser.hadError) ? NULL : objFunction;
 }
 
 // parsing declaration/statements
@@ -584,12 +583,12 @@ static uint8_t addConstantAndCheckLimit(Value value){
 	return index;
 }
 
-static void endCompiler(){
+static ObjectFunction* endCompiler(){
 	emitReturn();
-
 	#ifdef DEBUG_PRINT_CODE
-	if (!parser.hadError) disassembleChunk(currentChunk(), "Compiled code");
+	if (!parser.hadError) disassembleChunk(currentChunk(), currentCompiler->type == FUNCTION_MAIN ? "<script>" : currentCompiler->function->name->string);
 	#endif
+	return currentCompiler->function;
 }
 
 static void emitReturn(){
@@ -668,7 +667,7 @@ static int getLocalDepth(Token token){
 }
 
 static Chunk* currentChunk(){
-	return compilingChunk;
+	return currentCompiler->function->chunk;
 }
 
 static void beginScope(){

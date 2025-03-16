@@ -20,21 +20,20 @@ void initVM(){
 
 InterpreterResult interpret(const char* source){
 
-	Chunk chunk;
-	initChunk(&chunk);
 
-	if (!compile(source, &chunk)){
-		freeChunk(&chunk);
+	ObjectFunction* currentFunction = compile(source);
+	if (currentFunction == NULL){
+		freeVM();
 		return COMPILE_ERROR;
 	}
 
 	else {
-		vm.chunk = &chunk;
+		vm.chunk = currentFunction->chunk;
 		vm.ip = vm.chunk->code;
 
 		InterpreterResult result = runVM();
 
-		freeChunk(&chunk);
+		freeVM();
 		return result;
 	}
 }

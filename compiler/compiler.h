@@ -5,7 +5,7 @@
 #include "../scanner/token.h"
 
 
-bool compile(const char*, Chunk*);
+ObjectFunction* compile(const char*);
 
 typedef struct{
 	Token currentToken;
@@ -23,9 +23,11 @@ typedef struct{
 	Local locals[UINT8_T_LIMIT+1];
 	int currentScopeDepth;
 	int currentLocalsCount;
+	ObjectFunction* function;
+	FunctionType type;
 } Compiler;
 
-void initCompiler(Compiler*);
+void initCompiler(Compiler*, FunctionType);
 
 Parser parser;
 Compiler* currentCompiler;
