@@ -1,5 +1,6 @@
 #include "vm.h"
 #include "memory.h"
+#include "object.h"
 #include "../compiler/compiler.h"
 #include "../debug/disassembler.h"
 
@@ -10,26 +11,38 @@
 VM vm;
 
 void initVM(){
-	vm.chunk = NULL;
-	vm.ip = NULL;
 	vm.objects = NULL;
+	vm.frameCount = 0;
 	initTable(&vm.strings);
 	initTable(&vm.globals);
 	resetStack();
 }
 
+void initCallFrame(CallFrame* frame){
+	frame->ip = NULL;
+	frame->stackStart = vm.stackpointer;
+	frame->function = NULL;
+}
+
+void addFunctionToCurrentCallFrame(CallFrame* frame, ObjectFunction* function){
+	frame->function = function;
+	frame->ip = function->chunk->code;
+}
+
 InterpreterResult interpret(const char* source){
 
-
 	ObjectFunction* currentFunction = compile(source);
+
 	if (currentFunction == NULL){
 		freeVM();
 		return COMPILE_ERROR;
 	}
 
 	else {
-		vm.chunk = currentFunction->chunk;
-		vm.ip = vm.chunk->code;
+
+		CallFrame* frame = &(vm.frames[vm.frameCount]);
+		initCallFrame(frame);
+		addFunctionToCurrentCallFrame(frame, currentFunction);
 
 		InterpreterResult result = runVM();
 
@@ -40,12 +53,14 @@ InterpreterResult interpret(const char* source){
 
 InterpreterResult runVM(){
 	
-	#define READ_BYTE() *(vm.ip++)
-	#define READ_CONSTANT() (vm.chunk->constants).values[READ_BYTE()]
-	#define READ_2BYTES() (((uint16_t) *vm.ip) << 8) + *(vm.ip+1)
+	CallFrame* frame = &vm.frames[vm.frameCount++];
+
+	#define READ_BYTE() *(frame->ip++)
+	#define READ_CONSTANT() (frame->function->chunk->constants).values[READ_BYTE()]
+	#define READ_2BYTES() ((uint16_t) (*frame->ip << 8)) + *(frame->ip+1)
 		
 
-	#define BYTES_LEFT_TO_EXECUTE() (vm.ip < (vm.chunk->code + vm.chunk->count))
+	#define BYTES_LEFT_TO_EXECUTE() (frame->ip < (frame->function->chunk->code + frame->function->chunk->count))
 
 	#define BINARY_OP(resultValue, op, type) \
 			do { 	Value b = peek(0); Value a=peek(1); \
@@ -70,7 +85,7 @@ InterpreterResult runVM(){
 		
 		#ifdef DEBUG_TRACE_EXECUTION
 			disassembleVMStack();
-			disassembleInstruction(vm.chunk, (int) ((vm.ip) - (vm.chunk->code)));
+			disassembleInstruction(frame->function->chunk, (int) ((frame->ip) - (frame->function->chunk->code)));
 		#endif
 
 		uint8_t byte = READ_BYTE();
@@ -167,14 +182,14 @@ InterpreterResult runVM(){
 			case OP_GET_LOCAL:
 				{
 					uint8_t index = READ_BYTE();
-					push(*(vm.stack + index));
+					push(*(frame->stackStart + index));
 				}
 				break;
 
 			case OP_SET_LOCAL:
 				{
 					uint8_t index = READ_BYTE();
-					*(vm.stack + index) = peek(0);
+					*(frame->stackStart + index) = peek(0);
 				}
 				break;
 
@@ -263,6 +278,7 @@ Object* concatenate(){
 }
 
 void mutate_vm_ip(uint8_t opcode, uint16_t offset){
+	CallFrame* frame = &vm.frames[vm.frameCount-1];
 	bool mutate = (opcode == OP_JUMP_IF_FALSE && (trueOrFalse(peek(0)) == false)) ||
 			(opcode == OP_JUMP_IF_TRUE && (trueOrFalse(peek(0)) == true));
 
@@ -270,14 +286,14 @@ void mutate_vm_ip(uint8_t opcode, uint16_t offset){
 		case OP_JUMP_IF_TRUE:
 		case OP_JUMP_IF_FALSE:
 			if (!mutate){
-				vm.ip += 2;
+				frame->ip += 2;
 				return;
 			}
 		case OP_JUMP:
-			vm.ip+=offset;
+			frame->ip += offset;
 			break;
 		case OP_LOOP:
-			vm.ip-=offset;
+			frame->ip -= offset;
 			break;
 	}
 
@@ -285,10 +301,11 @@ void mutate_vm_ip(uint8_t opcode, uint16_t offset){
 
 //Error handling functions
 void runtimeError(char* format, ...){
+	CallFrame* frame = &vm.frames[vm.frameCount-1];
 	va_list ap;
 
-	int index = vm.ip - 1 - vm.chunk->code;
-	int line = vm.chunk->lines[index];
+	int index = frame->ip - 1 - frame->function->chunk->code;
+	int line = frame->function->chunk->lines[index];
 	fprintf(stderr, "line [%d] : ", line);
 
 	va_start(ap, format);

@@ -13,10 +13,18 @@ typedef enum{
 } InterpreterResult;
 
 typedef struct{
-	Chunk* chunk;
+	ObjectFunction* function;
 	uint8_t* ip;
+	Value* stackStart;
+} CallFrame;
+
+typedef struct{
+	CallFrame frames[CALL_FRAMES_MAX];
+	int frameCount;
+
 	Value* stackpointer;
 	Value stack[STACK_MAX_SIZE];
+
 	Object* objects;
 	Table strings;
 	Table globals;
@@ -25,6 +33,10 @@ typedef struct{
 // function prototypes
 void initVM();
 void freeVM();
+
+// Call frame function prototypes
+void initCallFrame(CallFrame*);
+void addFunctionToCurrentCallFrame(CallFrame*, ObjectFunction*);
 
 InterpreterResult interpret(const char* source);
 InterpreterResult runVM();
