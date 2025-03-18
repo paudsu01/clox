@@ -64,7 +64,10 @@ void printObject(Object* object){
 }
 
 void printFunction(ObjectFunction* function) {
-	printf("<function: %.*s", function->name->length, function->name->string);
+	if (function->name != NULL)
+		printf("< function: %.*s >", function->name->length, function->name->string);
+	else
+		printf("< script >");
 }
 
 bool checkIfValuesEqual(Value val1, Value val2){

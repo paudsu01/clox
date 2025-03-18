@@ -34,7 +34,6 @@ InterpreterResult interpret(const char* source){
 	ObjectFunction* currentFunction = compile(source);
 
 	if (currentFunction == NULL){
-		freeVM();
 		return COMPILE_ERROR;
 	}
 
@@ -43,11 +42,9 @@ InterpreterResult interpret(const char* source){
 		CallFrame* frame = &(vm.frames[vm.frameCount]);
 		initCallFrame(frame);
 		addFunctionToCurrentCallFrame(frame, currentFunction);
+		push(OBJECT(currentFunction));
 
-		InterpreterResult result = runVM();
-
-		freeVM();
-		return result;
+		return runVM();
 	}
 }
 

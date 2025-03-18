@@ -19,7 +19,8 @@ typedef struct{
 	int depth;
 } Local;
 
-typedef struct{
+typedef struct Compiler{
+	struct Compiler* parentCompiler;
 	Local locals[UINT8_T_LIMIT+1];
 	int currentScopeDepth;
 	int currentLocalsCount;
