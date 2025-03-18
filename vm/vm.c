@@ -16,6 +16,7 @@ void initVM(){
 	initTable(&vm.strings);
 	initTable(&vm.globals);
 	resetStack();
+	declareNativeFunctions();
 }
 
 void initCallFrame(CallFrame* frame){
@@ -369,5 +370,10 @@ Value peek(int depth){
 
 void resetStack(){
 	vm.stackpointer = vm.stack;
+}
+
+// Functions for native functions in Lox
+void declareNativeFunctions(){
+	//TODO
 }
 

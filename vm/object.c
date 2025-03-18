@@ -58,6 +58,16 @@ ObjectFunction* makeNewFunctionObject(){
 	return objFunction;
 }
 
+ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString* name, int arity, NativeFunction function){
+	
+	ObjectNativeFunction* objFunction = (ObjectNativeFunction *) allocateObject(sizeof(ObjectNativeFunction), OBJECT_NATIVE_FUNCTION);
+	objFunction->name = name;
+	objFunction->arity = arity;
+	objFunction->nativeFunction = function;
+	return objFunction;
+}
+
+
 uint32_t jenkinsHash(const char* key, int length){
 	// Jenkins hash function
 	// Reference: https://en.wikipedia.org/wiki/Jenkins_hash_function

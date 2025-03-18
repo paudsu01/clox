@@ -10,6 +10,7 @@ typedef struct Chunk Chunk;
 typedef enum{
 	OBJECT_STRING,
 	OBJECT_FUNCTION,
+	OBJECT_NATIVE_FUNCTION,
 } ObjectType;
 
 typedef enum{
@@ -36,9 +37,19 @@ typedef struct{
 	Chunk* chunk;
 } ObjectFunction;
 
+typedef void (*NativeFunction) ();
+
+typedef struct{
+	Object object;
+	int arity;
+	ObjectString* name;
+	NativeFunction nativeFunction;
+} ObjectNativeFunction;
+
 ObjectString* makeStringObject(const char*,int);
 ObjectString* allocateStringObject(char*, int);
 ObjectFunction* makeNewFunctionObject();
+ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString*, int, NativeFunction);
 Object* allocateObject(int,ObjectType);
 uint32_t jenkinsHash(const char*,int);
 
