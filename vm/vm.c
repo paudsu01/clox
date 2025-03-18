@@ -88,6 +88,15 @@ InterpreterResult runVM(){
 		uint8_t byte = READ_BYTE();
 		switch (byte){
 			case OP_RETURN:
+				{
+					Value returnValue = pop();
+					vm.stackpointer = frame->stackStart;
+					// no need to push the `nil` value for the main function
+					if (vm.frameCount > 1){
+						push(returnValue);
+						frame = &vm.frames[(--vm.frameCount) - 1];
+					} else return NO_ERROR;
+				}
 				break;
 
 			case OP_PRINT:

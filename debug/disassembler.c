@@ -134,7 +134,7 @@ int disassembleInstruction(Chunk* chunk, int index){
 			break;
 
 		case OP_CALL:
-			printf("OP_CALL: %3.0d args\n", *((chunk->code)+(index++)));
+			printf("OP_CALL: %d args\n", *((chunk->code)+(++index)));
 			break;
 		default:
 			printf("UNKNOWN_OP_CODE\n");
