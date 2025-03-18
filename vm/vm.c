@@ -233,9 +233,25 @@ InterpreterResult runVM(){
 
 			case OP_CALL:
 				{
-					//TODO CALL FRAME UPDATE
-					// Read nargs
-					// handle errors ( # of args should be = # of params, value has to be callable
+					uint8_t nargs = READ_BYTE();
+					Value funcVal = peek(nargs);
+
+					if (!(IS_FUNCTION(funcVal))){
+						printValue(funcVal);
+						runtimeError(" is not callable");\
+						return RUNTIME_ERROR;
+					}
+
+					ObjectFunction* funcObject = AS_FUNCTION_OBJ(funcVal);
+					if (nargs != funcObject->arity){
+						runtimeError("Expected %3d arguments, got %3d", funcObject->arity, nargs);
+						return RUNTIME_ERROR;
+					}
+
+					frame = &(vm.frames[vm.frameCount++]);
+					initCallFrame(frame);
+					addFunctionToCurrentCallFrame(frame, funcObject);
+					frame->stackStart = vm.stackpointer - nargs - 1;
 				}
 				break;
 
