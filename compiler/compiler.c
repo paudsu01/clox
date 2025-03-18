@@ -36,7 +36,7 @@ static void emitBytes(uint8_t, uint8_t);
 static int emitJump(uint8_t);
 static void patchJump(int, uint8_t);
 static ObjectFunction* endCompiler();
-static void emitReturn();
+static void emitReturn(bool);
 static void emitConstant(Value);
 static uint8_t addConstantAndCheckLimit(Value value);
 
@@ -56,6 +56,7 @@ static void parsePrintStatement();
 static void parseIfStatement();
 static void parseWhileStatement();
 static void parseForStatement();
+static void parseReturnStatement();
 static void parseExpressionStatement();
 static void parseBlockStatement();
 
@@ -255,7 +256,7 @@ static int parseParameters(){
 	return nargs;
 }
 
-// statement -> printStatement | block | exprStatement | ifStatement | whileStatement | forStatement
+// statement -> printStatement | block | exprStatement | ifStatement | whileStatement | forStatement | returnStatement
 static void parseStatement(){
 	if (matchToken(TOKEN_PRINT)){
 		parsePrintStatement();
@@ -269,6 +270,8 @@ static void parseStatement(){
 		parseWhileStatement();
 	} else if (matchToken(TOKEN_FOR)){
 		parseForStatement();
+	} else if (matchToken(TOKEN_RETURN)){
+		parseReturnStatement();
 	} else{
 		parseExpressionStatement();
 	}
@@ -389,6 +392,18 @@ static void parseWhileStatement(){
 	// jump back
 	patchJump(endJumpIndex, OP_JUMP_IF_FALSE);
 	emitByte(OP_POP);
+}
+
+static void parseReturnStatement(){
+	if (currentCompiler->type == FUNCTION_MAIN) errorAtPreviousToken("Cannot return when not inside a function");
+
+	if (!matchToken(TOKEN_SEMICOLON)){
+		parseExpression();
+		consumeToken(TOKEN_SEMICOLON, "Expected ';' at end of return statement");
+	} else{
+		emitByte(OP_NIL);
+	}
+	emitReturn(false);
 }
 
 // PrattParsing functions
@@ -664,7 +679,7 @@ static uint8_t addConstantAndCheckLimit(Value value){
 }
 
 static ObjectFunction* endCompiler(){
-	emitReturn();
+	emitReturn(true);
 	#ifdef DEBUG_PRINT_CODE
 	if (!parser.hadError) disassembleChunk(currentChunk(), currentCompiler->type == FUNCTION_MAIN ? "<script>" : currentCompiler->function->name->string);
 	#endif
@@ -674,7 +689,10 @@ static ObjectFunction* endCompiler(){
 	return function;
 }
 
-static void emitReturn(){
+static void emitReturn(bool noExpression){
+	if (noExpression){
+		emitByte(OP_NIL);
+	}
 	emitByte(OP_RETURN);
 
 }
