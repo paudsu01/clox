@@ -237,18 +237,22 @@ InterpreterResult runVM(){
 					Value funcVal = peek(nargs);
 
 					if (!(IS_FUNCTION(funcVal))){
-						printValue(funcVal);
-						runtimeError(" is not callable");\
+						runtimeError("Can only call functions and classes");
 						return RUNTIME_ERROR;
 					}
 
 					ObjectFunction* funcObject = AS_FUNCTION_OBJ(funcVal);
 					if (nargs != funcObject->arity){
-						runtimeError("Expected %3d arguments, got %3d", funcObject->arity, nargs);
+						runtimeError("Expected %d arguments, got %d", funcObject->arity, nargs);
 						return RUNTIME_ERROR;
 					}
 
 					frame = &(vm.frames[vm.frameCount++]);
+					if (vm.frameCount == CALL_FRAMES_MAX) {
+						runtimeError("Call stack overflow !!");
+						return RUNTIME_ERROR;
+					}
+
 					initCallFrame(frame);
 					addFunctionToCurrentCallFrame(frame, funcObject);
 					frame->stackStart = vm.stackpointer - nargs - 1;
@@ -322,17 +326,22 @@ void mutate_vm_ip(uint8_t opcode, uint16_t offset){
 
 //Error handling functions
 void runtimeError(char* format, ...){
-	CallFrame* frame = &vm.frames[vm.frameCount-1];
+
+	fprintf(stderr, "Runtime Error:\t");
 	va_list ap;
-
-	int index = frame->ip - 1 - frame->function->chunk->code;
-	int line = frame->function->chunk->lines[index];
-	fprintf(stderr, "line [%d] : ", line);
-
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
+	
+	for (int frameIndex=vm.frameCount; frameIndex>0; frameIndex--){
+		CallFrame* frame = &vm.frames[frameIndex - 1];
+		int index = frame->ip - 1 - frame->function->chunk->code;
+		int line = frame->function->chunk->lines[index];
+		if (frame->function->name == NULL) fprintf(stderr, "line [%d] : in < script >\n", line);
+		else fprintf(stderr, "line [%d] : in `%s()`\n", line, frame->function->name->string);
+	}
+
 	resetStack();
 }
 
