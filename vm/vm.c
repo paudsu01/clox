@@ -246,26 +246,31 @@ InterpreterResult runVM(){
 					uint8_t nargs = READ_BYTE();
 					Value funcVal = peek(nargs);
 
-					if (!(IS_FUNCTION(funcVal))){
-						runtimeError("Can only call functions and classes");
-						return RUNTIME_ERROR;
-					}
+					if (callNoErrors(nargs, funcVal)){
+						switch (AS_OBJ(funcVal)->objectType){
+							case OBJECT_NATIVE_FUNCTION:
+							{
+								ObjectNativeFunction* nativeFn = AS_NATIVE_FUNCTION_OBJ(peek(nargs));
+								nativeFn->nativeFunction();
+								Value nativeValue = pop();
+								vm.stackpointer -= (nargs +1);
+								push(nativeValue);
+							}
+								break;
+							case OBJECT_FUNCTION:
+							{
+								frame = &(vm.frames[vm.frameCount++]);
+								initCallFrame(frame);
+								addFunctionToCurrentCallFrame(frame, AS_FUNCTION_OBJ(funcVal));
+								frame->stackStart = vm.stackpointer - nargs - 1;
+							}
+								break;
+							default:
+								//Unreachable
+								break;
+						}
+					} else return RUNTIME_ERROR;
 
-					ObjectFunction* funcObject = AS_FUNCTION_OBJ(funcVal);
-					if (nargs != funcObject->arity){
-						runtimeError("Expected %d arguments, got %d", funcObject->arity, nargs);
-						return RUNTIME_ERROR;
-					}
-
-					frame = &(vm.frames[vm.frameCount++]);
-					if (vm.frameCount == CALL_FRAMES_MAX) {
-						runtimeError("Call stack overflow !!");
-						return RUNTIME_ERROR;
-					}
-
-					initCallFrame(frame);
-					addFunctionToCurrentCallFrame(frame, funcObject);
-					frame->stackStart = vm.stackpointer - nargs - 1;
 				}
 				break;
 
@@ -355,6 +360,36 @@ void runtimeError(char* format, ...){
 	resetStack();
 }
 
+bool callNoErrors(int nargs, Value funcVal){
+	int arity;
+	switch (funcVal.type){
+		case TYPE_OBJ:
+		{
+			switch (AS_OBJ(funcVal)->objectType){
+				case OBJECT_NATIVE_FUNCTION:
+					arity = (AS_NATIVE_FUNCTION_OBJ(funcVal))->arity;
+				case OBJECT_FUNCTION:{
+					if (AS_OBJ(funcVal)->objectType == OBJECT_FUNCTION) arity = (AS_FUNCTION_OBJ(funcVal))->arity;
+					if (nargs != arity){
+						runtimeError("Expected %d arguments, got %d", arity, nargs);
+						return false;
+					}
+					if (vm.frameCount == CALL_FRAMES_MAX) {
+						runtimeError("Call stack overflow !!");
+						return false;
+					}}
+				return true;
+				default:
+					break;
+			}}
+			break;
+		default:
+			break;
+	}
+	runtimeError("Can only call functions and classes");
+	return false;
+}
+
 // stack based functions 
 void push(Value value){
 	*(vm.stackpointer++) = value;
@@ -373,12 +408,18 @@ void resetStack(){
 }
 
 // Functions for native functions in Lox
+// DESIGN NOTE: Native functions can assume their 'n' arguments on top of the stack with last argument being at the top
+// And, these functions MUST push some final value of top of the stack (if the native function doesn't need to return anything,
+// it must still return `nil` LoxValue.
 void declareNativeFunctions(){
-	ObjectString* clockLoxString = makeStringObject("clock", 5);
-	ObjectNativeFunction* clockFn = makeNewNativeFunctionObject(clockLoxString, 0, clockNativeFunction);
-	tableAdd(&vm.globals, clockLoxString, OBJECT(clockFn));
+	declareNativeFunction("clock", 0, clockNativeFunction);
 }
 
+void declareNativeFunction(char name[], int arity, NativeFunction functionToExecute){
+	ObjectString* loxString = makeStringObject(name, strlen(name));
+	ObjectNativeFunction* nativeFn = makeNewNativeFunctionObject(loxString, arity, functionToExecute);
+	tableAdd(&vm.globals, loxString, OBJECT(nativeFn));
+}
 void clockNativeFunction(){
 	push(NUMBER(2049));
 }
