@@ -53,6 +53,7 @@ bool checkIfObjectsEqual(Object*,Object*);
 #define AS_OBJ(value) value.as.object
 #define AS_STRING_OBJ(value) (ObjectString*) value.as.object
 #define AS_FUNCTION_OBJ(value) (ObjectFunction*) value.as.object
+#define AS_NATIVE_FUNCTION_OBJ(value) (ObjectNativeFunction*) value.as.object
 
 #define IS_BOOL(value) value.type == TYPE_BOOL
 #define IS_NIL(value) value.type == TYPE_NIL

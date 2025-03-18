@@ -374,6 +374,12 @@ void resetStack(){
 
 // Functions for native functions in Lox
 void declareNativeFunctions(){
-	//TODO
+	ObjectString* clockLoxString = makeStringObject("clock", 5);
+	ObjectNativeFunction* clockFn = makeNewNativeFunctionObject(clockLoxString, 0, clockNativeFunction);
+	tableAdd(&vm.globals, clockLoxString, OBJECT(clockFn));
+}
+
+void clockNativeFunction(){
+	push(NUMBER(2049));
 }
 
