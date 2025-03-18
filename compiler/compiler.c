@@ -72,9 +72,10 @@ static void parseString(bool);
 static void parseLiteral(bool);
 static void parseIdentifier(bool);
 static void parseGrouping(bool);
+static void parseFuncCall(bool);
 
 ParseRow rules[] = {
-  [TOKEN_LEFT_PAREN]    = {parseGrouping,    NULL,	   PREC_NONE},	
+  [TOKEN_LEFT_PAREN]    = {parseGrouping,    parseFuncCall,PREC_CALL},	
   [TOKEN_RIGHT_PAREN]   = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_LEFT_BRACE]    = {NULL,	     NULL,	   PREC_NONE},	 
   [TOKEN_RIGHT_BRACE]   = {NULL,	     NULL,	   PREC_NONE},	
@@ -93,7 +94,7 @@ ParseRow rules[] = {
   [TOKEN_GREATER_EQUAL] = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_LESS]          = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_LESS_EQUAL]    = {NULL,	     parseBinary,  PREC_COMPARISON},	
-  [TOKEN_IDENTIFIER]    = {parseIdentifier,    NULL,	   PREC_NONE},	
+  [TOKEN_IDENTIFIER]    = {parseIdentifier,  NULL,	   PREC_NONE},	
   [TOKEN_STRING]        = {parseString,	     NULL,	   PREC_NONE},	
   [TOKEN_NUMBER]        = {parseNumber,	     NULL,	   PREC_NONE},	
   [TOKEN_AND]           = {NULL,	     parseAnd,	   PREC_AND},	
@@ -397,6 +398,19 @@ static void parseExpression(){
 static void parseGrouping(bool canAssign){
 	parseExpression();
 	consumeToken(TOKEN_RIGHT_PAREN, "'(' expected");
+}
+
+static void parseFuncCall(bool canAssign){
+	int nargs=0;
+	if (!matchToken(TOKEN_RIGHT_PAREN)){
+		do{
+			parseExpression();
+			nargs++;
+		}while(matchToken(TOKEN_COMMA));
+
+		consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function call");
+	}
+	emitBytes(OP_CALL, nargs);
 }
 
 static void parseNumber(bool canAssign){

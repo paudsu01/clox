@@ -133,6 +133,9 @@ int disassembleInstruction(Chunk* chunk, int index){
 			handleJumpInstruction(OP_LOOP, chunk, index = index + 2);
 			break;
 
+		case OP_CALL:
+			printf("OP_CALL: %3.0d args\n", *((chunk->code)+(index++)));
+			break;
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;

@@ -231,6 +231,14 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_CALL:
+				{
+					//TODO CALL FRAME UPDATE
+					// Read nargs
+					// handle errors ( # of args should be = # of params, value has to be callable
+				}
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}
