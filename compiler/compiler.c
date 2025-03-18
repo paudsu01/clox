@@ -50,6 +50,7 @@ static void synchronize();
 static void parseDeclaration();
 static void parseVarDeclaration();
 static void parseFuncDeclaration();
+static void parseParameters();
 static void parseStatement();
 static void parsePrintStatement();
 static void parseIfStatement();
@@ -218,10 +219,10 @@ static void parseFuncDeclaration(){
 
 	beginScope();
 	//handleArguments
-	consumeToken(TOKEN_LEFT_PAREN, "'(' expected for function declaration");
-	consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function parameters");
+	parseParameters();
 	consumeToken(TOKEN_LEFT_BRACE, "Expected block body");
 
+	beginScope();
 	parseBlockStatement();
 
 	// push the function onto the stack
@@ -231,6 +232,25 @@ static void parseFuncDeclaration(){
 	
 	// emit byte to add it to global hash table if it is a global variable
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
+}
+
+// param -> "(" IDENTIFIER ? ("," IDENTIFIER )* ")"
+static void parseParameters(){
+
+	consumeToken(TOKEN_LEFT_PAREN, "'(' expected for function declaration");
+	if (matchToken(TOKEN_RIGHT_PAREN)) return;
+
+	int nargs = 0;
+	do{
+		consumeToken(TOKEN_IDENTIFIER, "Parameter name expected");
+		currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = currentCompiler->currentScopeDepth, .name=parser.previousToken};
+
+		nargs++;
+		if (nargs > UINT8_T_LIMIT) errorAtPreviousToken("Cannot have more than 255 arguments");
+	}
+	while (matchToken(TOKEN_COMMA));
+
+	consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function parameters");
 }
 
 // statement -> printStatement | block | exprStatement | ifStatement | whileStatement | forStatement
