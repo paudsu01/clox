@@ -47,7 +47,9 @@ void mutate_vm_ip(uint8_t, uint16_t);
 
 void declareNativeFunctions();
 void declareNativeFunction(char[], int, NativeFunction);
-void clockNativeFunction();
+bool clockNativeFunction();
+bool inputNativeFunction();
+bool numberNativeFunction();
 
 void runtimeError(char*,...);
 bool callNoErrors(int, Value);

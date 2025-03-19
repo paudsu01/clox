@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
+#include <stdlib.h>
 
 VM vm;
 
@@ -40,7 +42,7 @@ InterpreterResult interpret(const char* source){
 
 	else {
 
-		CallFrame* frame = &(vm.frames[vm.frameCount]);
+		CallFrame* frame = &(vm.frames[vm.frameCount=0]);
 		initCallFrame(frame);
 		addFunctionToCurrentCallFrame(frame, currentFunction);
 		push(OBJECT(currentFunction));
@@ -251,7 +253,10 @@ InterpreterResult runVM(){
 							case OBJECT_NATIVE_FUNCTION:
 							{
 								ObjectNativeFunction* nativeFn = AS_NATIVE_FUNCTION_OBJ(peek(nargs));
-								nativeFn->nativeFunction();
+								bool success = nativeFn->nativeFunction();
+								if (!success) {
+									return RUNTIME_ERROR;
+								} 
 								Value nativeValue = pop();
 								vm.stackpointer -= (nargs +1);
 								push(nativeValue);
@@ -409,10 +414,13 @@ void resetStack(){
 
 // Functions for native functions in Lox
 // DESIGN NOTE: Native functions can assume their 'n' arguments on top of the stack with last argument being at the top
+// Native functions musn't pop any values, they should instead use the peek function.
 // And, these functions MUST push some final value of top of the stack (if the native function doesn't need to return anything,
 // it must still return `nil` LoxValue.
 void declareNativeFunctions(){
 	declareNativeFunction("clock", 0, clockNativeFunction);
+	declareNativeFunction("input", 0, inputNativeFunction);
+	declareNativeFunction("number", 1, numberNativeFunction);
 }
 
 void declareNativeFunction(char name[], int arity, NativeFunction functionToExecute){
@@ -420,7 +428,57 @@ void declareNativeFunction(char name[], int arity, NativeFunction functionToExec
 	ObjectNativeFunction* nativeFn = makeNewNativeFunctionObject(loxString, arity, functionToExecute);
 	tableAdd(&vm.globals, loxString, OBJECT(nativeFn));
 }
-void clockNativeFunction(){
-	push(NUMBER(2049));
+bool clockNativeFunction(){
+	push(NUMBER(clock()));
+	return true;
+}
+
+bool inputNativeFunction(){
+	// takes user input as string
+	int length = 0;
+	char input[1024];	
+
+	int c = getchar();
+	input[length] = c;
+	while (c != '\n'){
+		length++;
+		input[length] = c = getchar();
+	}
+
+	push(OBJECT(makeStringObject(input, length)));
+	return true;
+}
+
+bool numberNativeFunction(){
+	switch(peek(0).type){
+		case TYPE_NUM:
+			push(peek(0));
+			break;
+		case TYPE_BOOL:
+			{
+				double val = 0;
+				if (peek(0).as.boolean == true) val = 1;
+				push(NUMBER(val));
+			}
+			break;
+		case TYPE_NIL:
+			push(NUMBER(0));
+			break;
+		case TYPE_OBJ:
+			{
+				double num;
+				char* ptr;
+				if ((AS_OBJ(peek(0)))->objectType != OBJECT_STRING){
+					push(NUMBER(0));
+					runtimeError("Cannot convert provided value type to number");
+					return false;
+				}
+				ObjectString* str = AS_STRING_OBJ(peek(0));
+				num = strtod(str->string, &ptr);
+				push(NUMBER(num));
+			}
+			break;
+	}
+	return true;
 }
 

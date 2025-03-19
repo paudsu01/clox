@@ -37,7 +37,7 @@ typedef struct{
 	Chunk* chunk;
 } ObjectFunction;
 
-typedef void (*NativeFunction) ();
+typedef bool (*NativeFunction) ();
 
 typedef struct{
 	Object object;
