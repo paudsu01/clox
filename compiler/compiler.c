@@ -10,9 +10,6 @@
 #include "../debug/disassembler.h"
 #endif
 
-// Variables
-Chunk* compilingChunk;
-
 // Function prototypes
 
 // Token-handling functions
@@ -22,6 +19,8 @@ static bool checkToken(TokenType);
 static void advanceToken();
 
 // Helper functions
+static int parseGlobalVariable();
+static void handleLocalVariable();
 static void beginScope();
 static void endScope();
 static Chunk* currentChunk();
@@ -36,8 +35,8 @@ static void emitByte(uint8_t);
 static void emitBytes(uint8_t, uint8_t);
 static int emitJump(uint8_t);
 static void patchJump(int, uint8_t);
-static void endCompiler();
-static void emitReturn();
+static ObjectFunction* endCompiler();
+static void emitReturn(bool);
 static void emitConstant(Value);
 static uint8_t addConstantAndCheckLimit(Value value);
 
@@ -50,11 +49,14 @@ static void synchronize();
 // parsing functions
 static void parseDeclaration();
 static void parseVarDeclaration();
+static void parseFuncDeclaration();
+static int parseParameters();
 static void parseStatement();
 static void parsePrintStatement();
 static void parseIfStatement();
 static void parseWhileStatement();
 static void parseForStatement();
+static void parseReturnStatement();
 static void parseExpressionStatement();
 static void parseBlockStatement();
 
@@ -71,9 +73,10 @@ static void parseString(bool);
 static void parseLiteral(bool);
 static void parseIdentifier(bool);
 static void parseGrouping(bool);
+static void parseFuncCall(bool);
 
 ParseRow rules[] = {
-  [TOKEN_LEFT_PAREN]    = {parseGrouping,    NULL,	   PREC_NONE},	
+  [TOKEN_LEFT_PAREN]    = {parseGrouping,    parseFuncCall,PREC_CALL},	
   [TOKEN_RIGHT_PAREN]   = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_LEFT_BRACE]    = {NULL,	     NULL,	   PREC_NONE},	 
   [TOKEN_RIGHT_BRACE]   = {NULL,	     NULL,	   PREC_NONE},	
@@ -92,7 +95,7 @@ ParseRow rules[] = {
   [TOKEN_GREATER_EQUAL] = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_LESS]          = {NULL,	     parseBinary,  PREC_COMPARISON},	
   [TOKEN_LESS_EQUAL]    = {NULL,	     parseBinary,  PREC_COMPARISON},	
-  [TOKEN_IDENTIFIER]    = {parseIdentifier,    NULL,	   PREC_NONE},	
+  [TOKEN_IDENTIFIER]    = {parseIdentifier,  NULL,	   PREC_NONE},	
   [TOKEN_STRING]        = {parseString,	     NULL,	   PREC_NONE},	
   [TOKEN_NUMBER]        = {parseNumber,	     NULL,	   PREC_NONE},	
   [TOKEN_AND]           = {NULL,	     parseAnd,	   PREC_AND},	
@@ -115,19 +118,37 @@ ParseRow rules[] = {
   [TOKEN_EOF]           = {NULL,	     NULL,	   PREC_NONE},	
 };
 
-void initCompiler(Compiler* compiler){
+void initCompiler(Compiler* compiler, FunctionType type){
+	compiler->parentCompiler = currentCompiler;
 	compiler->currentScopeDepth = 0;
 	compiler->currentLocalsCount = 0;
+
+	compiler->type = type;
+	compiler->function = makeNewFunctionObject();
+
+	// Assign first slot to the current function
+	Local* local = &compiler->locals[compiler->currentLocalsCount++];
+	local->depth = 0;
+	local->name.start = "";
+	local->name.length = 0;
+
+	if (type != FUNCTION_MAIN){
+		compiler->function->name = makeStringObject(parser.previousToken.start, parser.previousToken.length);
+		local->name.start = compiler->function->name->string;
+		local->name.length = compiler->function->name->length;
+	}
+
+	currentCompiler = compiler;
 }
 
-bool compile(const char* source, Chunk* chunk){
+ObjectFunction* compile(const char* source){
 	parser.hadError = false;
 	parser.panicMode = false;
-	compilingChunk = chunk;
 	Compiler compiler;
+	compiler.parentCompiler = NULL;
 
 	initScanner(source);
-	initCompiler(currentCompiler = &compiler);
+	initCompiler(&compiler, FUNCTION_MAIN);
 
 	advanceToken();
 
@@ -135,15 +156,16 @@ bool compile(const char* source, Chunk* chunk){
 		parseDeclaration();
 	}
 
-	endCompiler();
-	return !parser.hadError;
+	ObjectFunction* objFunction = endCompiler();
+	return (parser.hadError) ? NULL : objFunction;
 }
 
 // parsing declaration/statements
 
-// declaration -> varDecl | statement;
+// declaration -> varDecl | statement | funcDecl ;
 static void parseDeclaration(){
 	if (matchToken(TOKEN_VAR)) parseVarDeclaration();
+	else if (matchToken(TOKEN_FUN)) parseFuncDeclaration();
 	else parseStatement();
 
 	if (parser.panicMode){
@@ -159,21 +181,11 @@ static void parseVarDeclaration(){
 	uint8_t index;
 	if (currentCompiler->currentScopeDepth == 0){
 		// Global variable
-		Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
-		index = addConstantAndCheckLimit(value);
+		index = parseGlobalVariable();
 
 	} else {
 		// Local variable handling
-		if (currentCompiler->currentLocalsCount > UINT8_T_LIMIT){
-			errorAtPreviousToken("Too many locals variables!");
-
-		} else{
-			if (noDuplicateVarInCurrentScope()) {
-				currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = -1, .name=parser.previousToken};
-			} else{
-				errorAtPreviousToken("Local variable cannot be re-initialized!");
-			}
-		}
+		handleLocalVariable();
 	}
 	
 	if (matchToken(TOKEN_EQUAL)){
@@ -189,7 +201,62 @@ static void parseVarDeclaration(){
 	else markInitialized();
 }
 
-// statement -> printStatement | block | exprStatement | ifStatement | whileStatement | forStatement
+// funDec -> "fun" IDENTIFIER "(" IDENTIFIER ? ("," IDENTIFIER)* ")" block
+static void parseFuncDeclaration(){
+	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
+	uint8_t index;
+
+	if (currentCompiler->currentScopeDepth == 0){
+		// Global variable
+		index = parseGlobalVariable();
+
+	} else {
+		// Local variable handling
+		handleLocalVariable();
+		markInitialized();
+	}
+
+	Compiler newCompiler;
+	initCompiler(&newCompiler, FUNCTION);
+
+	beginScope();
+	//handleArguments
+	int nargs = parseParameters();
+	consumeToken(TOKEN_LEFT_BRACE, "Expected block body");
+
+	beginScope();
+	parseBlockStatement();
+
+	// push the function onto the stack
+	ObjectFunction* function = endCompiler();
+	function->arity = nargs;
+
+	emitConstant(OBJECT(function));
+	
+	// emit byte to add it to global hash table if it is a global variable
+	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
+}
+
+// param -> "(" IDENTIFIER ? ("," IDENTIFIER )* ")"
+static int parseParameters(){
+
+	consumeToken(TOKEN_LEFT_PAREN, "'(' expected for function declaration");
+	if (matchToken(TOKEN_RIGHT_PAREN)) return 0;
+
+	int nargs = 0;
+	do{
+		consumeToken(TOKEN_IDENTIFIER, "Parameter name expected");
+		nargs++;
+		currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = currentCompiler->currentScopeDepth, .name=parser.previousToken};
+
+		if (nargs > UINT8_T_LIMIT) errorAtPreviousToken("Cannot have more than 255 arguments");
+	}
+	while (matchToken(TOKEN_COMMA));
+	consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function parameters");
+	return nargs;
+}
+
+// statement -> printStatement | block | exprStatement | ifStatement | whileStatement | forStatement | returnStatement
 static void parseStatement(){
 	if (matchToken(TOKEN_PRINT)){
 		parsePrintStatement();
@@ -203,6 +270,8 @@ static void parseStatement(){
 		parseWhileStatement();
 	} else if (matchToken(TOKEN_FOR)){
 		parseForStatement();
+	} else if (matchToken(TOKEN_RETURN)){
+		parseReturnStatement();
 	} else{
 		parseExpressionStatement();
 	}
@@ -325,6 +394,18 @@ static void parseWhileStatement(){
 	emitByte(OP_POP);
 }
 
+static void parseReturnStatement(){
+	if (currentCompiler->type == FUNCTION_MAIN) errorAtPreviousToken("Cannot return when not inside a function");
+
+	if (!matchToken(TOKEN_SEMICOLON)){
+		parseExpression();
+		consumeToken(TOKEN_SEMICOLON, "Expected ';' at end of return statement");
+	} else{
+		emitByte(OP_NIL);
+	}
+	emitReturn(false);
+}
+
 // PrattParsing functions
 static void parseExpression(){
 	parsePrecedence(PREC_ASSIGN);
@@ -333,6 +414,19 @@ static void parseExpression(){
 static void parseGrouping(bool canAssign){
 	parseExpression();
 	consumeToken(TOKEN_RIGHT_PAREN, "'(' expected");
+}
+
+static void parseFuncCall(bool canAssign){
+	int nargs=0;
+	if (!matchToken(TOKEN_RIGHT_PAREN)){
+		do{
+			parseExpression();
+			nargs++;
+		}while(matchToken(TOKEN_COMMA));
+
+		consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function call");
+	}
+	emitBytes(OP_CALL, nargs);
 }
 
 static void parseNumber(bool canAssign){
@@ -584,15 +678,21 @@ static uint8_t addConstantAndCheckLimit(Value value){
 	return index;
 }
 
-static void endCompiler(){
-	emitReturn();
-
+static ObjectFunction* endCompiler(){
+	emitReturn(true);
 	#ifdef DEBUG_PRINT_CODE
-	if (!parser.hadError) disassembleChunk(currentChunk(), "Compiled code");
+	if (!parser.hadError) disassembleChunk(currentChunk(), currentCompiler->type == FUNCTION_MAIN ? "<script>" : currentCompiler->function->name->string);
 	#endif
+
+	ObjectFunction* function = currentCompiler->function;
+	currentCompiler = currentCompiler->parentCompiler;
+	return function;
 }
 
-static void emitReturn(){
+static void emitReturn(bool noExpression){
+	if (noExpression){
+		emitByte(OP_NIL);
+	}
 	emitByte(OP_RETURN);
 
 }
@@ -654,6 +754,24 @@ static void synchronize(){
 
 // Helper functions
 
+static int parseGlobalVariable(){
+	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+	return addConstantAndCheckLimit(value);
+}
+
+static void handleLocalVariable(){
+	if (currentCompiler->currentLocalsCount > UINT8_T_LIMIT){
+		errorAtPreviousToken("Too many locals variables!");
+
+	} else{
+		if (noDuplicateVarInCurrentScope()) {
+			currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = -1, .name=parser.previousToken};
+		} else{
+			errorAtPreviousToken("Local variable cannot be re-initialized!");
+		}
+	}
+}
+
 static int getLocalDepth(Token token){
 	// search if any such token in compiler locals array
 	for (int i=(currentCompiler->currentLocalsCount -1); i>=0; i--){
@@ -668,7 +786,7 @@ static int getLocalDepth(Token token){
 }
 
 static Chunk* currentChunk(){
-	return compilingChunk;
+	return currentCompiler->function->chunk;
 }
 
 static void beginScope(){

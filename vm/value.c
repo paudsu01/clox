@@ -55,9 +55,23 @@ void printObject(Object* object){
 		case OBJECT_STRING:
 			printf("\"%s\"", ((ObjectString*)object)->string);
 			break;
+		case OBJECT_FUNCTION:
+			printFunction((ObjectFunction *)object);
+			break;
+		case OBJECT_NATIVE_FUNCTION:
+			printf("< native fn: %s >", ((ObjectNativeFunction*) (object))->name->string);
+			break;
+
 		default:
 			break;
 	}
+}
+
+void printFunction(ObjectFunction* function) {
+	if (function->name != NULL)
+		printf("< function: %.*s >", function->name->length, function->name->string);
+	else
+		printf("< script >");
 }
 
 bool checkIfValuesEqual(Value val1, Value val2){
@@ -66,7 +80,7 @@ bool checkIfValuesEqual(Value val1, Value val2){
 		case TYPE_NIL: return true;
 		case TYPE_NUM: return AS_NUM(val1) == AS_NUM(val2);
 		case TYPE_BOOL: return AS_BOOL(val1) == AS_BOOL(val2);
-		case TYPE_OBJ: return AS_OBJ(val1) == AS_OBJ(val2);
+		case TYPE_OBJ: return checkIfObjectsEqual(AS_OBJ(val1), AS_OBJ(val2));
 		default: return false;
 	}
 }
@@ -75,12 +89,24 @@ bool checkIfObjectsEqual(Object* obj1, Object* obj2){
 	switch(obj1->objectType){
 		case OBJECT_STRING:
 			{
-				ObjectString* objStr1 = ((ObjectString*)obj1);
-				ObjectString* objStr2 = ((ObjectString*)obj2);
-				if (objStr1->length != objStr2->length) return false;
-				return (memcmp(objStr1->string, objStr2->string, objStr1->length) == 0) ? true : false;
+				if (obj2->objectType != OBJECT_STRING) return false;
+				return obj1 == obj2;
+			}
+		case OBJECT_FUNCTION:
+			{
+				if (obj2->objectType != OBJECT_FUNCTION) return false;
+				ObjectFunction* objFunc1 = ((ObjectFunction*)obj1);
+				ObjectFunction* objFunc2 = ((ObjectFunction*)obj2);
+				return (objFunc1->arity == objFunc2->arity && objFunc1->chunk == objFunc2->chunk) ? true : false;
+			}
+		case OBJECT_NATIVE_FUNCTION:
+			{
+				if (obj2->objectType != OBJECT_NATIVE_FUNCTION) return false;
+				ObjectNativeFunction* objFunc1 = ((ObjectNativeFunction*)obj1);
+				ObjectNativeFunction* objFunc2 = ((ObjectNativeFunction*)obj2);
+				return objFunc1->name == objFunc2->name;
 			}
 		default:
-			return true;
+			return false;
 	}
 }

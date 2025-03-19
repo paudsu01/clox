@@ -1,52 +1,66 @@
 #include "vm.h"
 #include "memory.h"
+#include "object.h"
 #include "../compiler/compiler.h"
 #include "../debug/disassembler.h"
 
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
+#include <stdlib.h>
 
 VM vm;
 
 void initVM(){
-	vm.chunk = NULL;
-	vm.ip = NULL;
 	vm.objects = NULL;
+	vm.frameCount = 0;
 	initTable(&vm.strings);
 	initTable(&vm.globals);
 	resetStack();
+	declareNativeFunctions();
+}
+
+void initCallFrame(CallFrame* frame){
+	frame->ip = NULL;
+	frame->stackStart = vm.stackpointer;
+	frame->function = NULL;
+}
+
+void addFunctionToCurrentCallFrame(CallFrame* frame, ObjectFunction* function){
+	frame->function = function;
+	frame->ip = function->chunk->code;
 }
 
 InterpreterResult interpret(const char* source){
 
-	Chunk chunk;
-	initChunk(&chunk);
+	ObjectFunction* currentFunction = compile(source);
 
-	if (!compile(source, &chunk)){
-		freeChunk(&chunk);
+	if (currentFunction == NULL){
 		return COMPILE_ERROR;
 	}
 
 	else {
-		vm.chunk = &chunk;
-		vm.ip = vm.chunk->code;
 
-		InterpreterResult result = runVM();
+		CallFrame* frame = &(vm.frames[vm.frameCount=0]);
+		initCallFrame(frame);
+		addFunctionToCurrentCallFrame(frame, currentFunction);
+		push(OBJECT(currentFunction));
 
-		freeChunk(&chunk);
-		return result;
+		return runVM();
 	}
 }
 
 InterpreterResult runVM(){
 	
-	#define READ_BYTE() *(vm.ip++)
-	#define READ_CONSTANT() (vm.chunk->constants).values[READ_BYTE()]
-	#define READ_2BYTES() (((uint16_t) *vm.ip) << 8) + *(vm.ip+1)
+	CallFrame* frame = &vm.frames[vm.frameCount++];
+
+	#define READ_BYTE() *(frame->ip++)
+	#define READ_CONSTANT() (frame->function->chunk->constants).values[READ_BYTE()]
+	#define READ_2BYTES() ((uint16_t) (*frame->ip << 8)) + *(frame->ip+1)
 		
 
-	#define BYTES_LEFT_TO_EXECUTE() (vm.ip < (vm.chunk->code + vm.chunk->count))
+	#define BYTES_LEFT_TO_EXECUTE() (frame->ip < (frame->function->chunk->code + frame->function->chunk->count))
 
 	#define BINARY_OP(resultValue, op, type) \
 			do { 	Value b = peek(0); Value a=peek(1); \
@@ -71,12 +85,21 @@ InterpreterResult runVM(){
 		
 		#ifdef DEBUG_TRACE_EXECUTION
 			disassembleVMStack();
-			disassembleInstruction(vm.chunk, (int) ((vm.ip) - (vm.chunk->code)));
+			disassembleInstruction(frame->function->chunk, (int) ((frame->ip) - (frame->function->chunk->code)));
 		#endif
 
 		uint8_t byte = READ_BYTE();
 		switch (byte){
 			case OP_RETURN:
+				{
+					Value returnValue = pop();
+					vm.stackpointer = frame->stackStart;
+					// no need to push the `nil` value for the main function
+					if (vm.frameCount > 1){
+						push(returnValue);
+						frame = &vm.frames[(--vm.frameCount) - 1];
+					} else return NO_ERROR;
+				}
 				break;
 
 			case OP_PRINT:
@@ -168,14 +191,14 @@ InterpreterResult runVM(){
 			case OP_GET_LOCAL:
 				{
 					uint8_t index = READ_BYTE();
-					push(*(vm.stack + index));
+					push(*(frame->stackStart + index));
 				}
 				break;
 
 			case OP_SET_LOCAL:
 				{
 					uint8_t index = READ_BYTE();
-					*(vm.stack + index) = peek(0);
+					*(frame->stackStart + index) = peek(0);
 				}
 				break;
 
@@ -217,6 +240,42 @@ InterpreterResult runVM(){
 				{
 					uint16_t offset = READ_2BYTES();
 					mutate_vm_ip(OP_LOOP, offset);
+				}
+				break;
+
+			case OP_CALL:
+				{
+					uint8_t nargs = READ_BYTE();
+					Value funcVal = peek(nargs);
+
+					if (callNoErrors(nargs, funcVal)){
+						switch (AS_OBJ(funcVal)->objectType){
+							case OBJECT_NATIVE_FUNCTION:
+							{
+								ObjectNativeFunction* nativeFn = AS_NATIVE_FUNCTION_OBJ(peek(nargs));
+								bool success = nativeFn->nativeFunction();
+								if (!success) {
+									return RUNTIME_ERROR;
+								} 
+								Value nativeValue = pop();
+								vm.stackpointer -= (nargs +1);
+								push(nativeValue);
+							}
+								break;
+							case OBJECT_FUNCTION:
+							{
+								frame = &(vm.frames[vm.frameCount++]);
+								initCallFrame(frame);
+								addFunctionToCurrentCallFrame(frame, AS_FUNCTION_OBJ(funcVal));
+								frame->stackStart = vm.stackpointer - nargs - 1;
+							}
+								break;
+							default:
+								//Unreachable
+								break;
+						}
+					} else return RUNTIME_ERROR;
+
 				}
 				break;
 
@@ -264,6 +323,7 @@ Object* concatenate(){
 }
 
 void mutate_vm_ip(uint8_t opcode, uint16_t offset){
+	CallFrame* frame = &vm.frames[vm.frameCount-1];
 	bool mutate = (opcode == OP_JUMP_IF_FALSE && (trueOrFalse(peek(0)) == false)) ||
 			(opcode == OP_JUMP_IF_TRUE && (trueOrFalse(peek(0)) == true));
 
@@ -271,14 +331,14 @@ void mutate_vm_ip(uint8_t opcode, uint16_t offset){
 		case OP_JUMP_IF_TRUE:
 		case OP_JUMP_IF_FALSE:
 			if (!mutate){
-				vm.ip += 2;
+				frame->ip += 2;
 				return;
 			}
 		case OP_JUMP:
-			vm.ip+=offset;
+			frame->ip += offset;
 			break;
 		case OP_LOOP:
-			vm.ip-=offset;
+			frame->ip -= offset;
 			break;
 	}
 
@@ -286,17 +346,53 @@ void mutate_vm_ip(uint8_t opcode, uint16_t offset){
 
 //Error handling functions
 void runtimeError(char* format, ...){
+
+	fprintf(stderr, "Runtime Error:\t");
 	va_list ap;
-
-	int index = vm.ip - 1 - vm.chunk->code;
-	int line = vm.chunk->lines[index];
-	fprintf(stderr, "line [%d] : ", line);
-
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
+	
+	for (int frameIndex=vm.frameCount; frameIndex>0; frameIndex--){
+		CallFrame* frame = &vm.frames[frameIndex - 1];
+		int index = frame->ip - 1 - frame->function->chunk->code;
+		int line = frame->function->chunk->lines[index];
+		if (frame->function->name == NULL) fprintf(stderr, "line [%d] : in < script >\n", line);
+		else fprintf(stderr, "line [%d] : in `%s()`\n", line, frame->function->name->string);
+	}
+
 	resetStack();
+}
+
+bool callNoErrors(int nargs, Value funcVal){
+	int arity;
+	switch (funcVal.type){
+		case TYPE_OBJ:
+		{
+			switch (AS_OBJ(funcVal)->objectType){
+				case OBJECT_NATIVE_FUNCTION:
+					arity = (AS_NATIVE_FUNCTION_OBJ(funcVal))->arity;
+				case OBJECT_FUNCTION:{
+					if (AS_OBJ(funcVal)->objectType == OBJECT_FUNCTION) arity = (AS_FUNCTION_OBJ(funcVal))->arity;
+					if (nargs != arity){
+						runtimeError("Expected %d arguments, got %d", arity, nargs);
+						return false;
+					}
+					if (vm.frameCount == CALL_FRAMES_MAX) {
+						runtimeError("Call stack overflow !!");
+						return false;
+					}}
+				return true;
+				default:
+					break;
+			}}
+			break;
+		default:
+			break;
+	}
+	runtimeError("Can only call functions and classes");
+	return false;
 }
 
 // stack based functions 
@@ -314,5 +410,75 @@ Value peek(int depth){
 
 void resetStack(){
 	vm.stackpointer = vm.stack;
+}
+
+// Functions for native functions in Lox
+// DESIGN NOTE: Native functions can assume their 'n' arguments on top of the stack with last argument being at the top
+// Native functions musn't pop any values, they should instead use the peek function.
+// And, these functions MUST push some final value of top of the stack (if the native function doesn't need to return anything,
+// it must still return `nil` LoxValue.
+void declareNativeFunctions(){
+	declareNativeFunction("clock", 0, clockNativeFunction);
+	declareNativeFunction("input", 0, inputNativeFunction);
+	declareNativeFunction("number", 1, numberNativeFunction);
+}
+
+void declareNativeFunction(char name[], int arity, NativeFunction functionToExecute){
+	ObjectString* loxString = makeStringObject(name, strlen(name));
+	ObjectNativeFunction* nativeFn = makeNewNativeFunctionObject(loxString, arity, functionToExecute);
+	tableAdd(&vm.globals, loxString, OBJECT(nativeFn));
+}
+bool clockNativeFunction(){
+	push(NUMBER(clock()));
+	return true;
+}
+
+bool inputNativeFunction(){
+	// takes user input as string
+	int length = 0;
+	char input[1024];	
+
+	int c = getchar();
+	input[length] = c;
+	while (c != '\n'){
+		length++;
+		input[length] = c = getchar();
+	}
+
+	push(OBJECT(makeStringObject(input, length)));
+	return true;
+}
+
+bool numberNativeFunction(){
+	switch(peek(0).type){
+		case TYPE_NUM:
+			push(peek(0));
+			break;
+		case TYPE_BOOL:
+			{
+				double val = 0;
+				if (peek(0).as.boolean == true) val = 1;
+				push(NUMBER(val));
+			}
+			break;
+		case TYPE_NIL:
+			push(NUMBER(0));
+			break;
+		case TYPE_OBJ:
+			{
+				double num;
+				char* ptr;
+				if ((AS_OBJ(peek(0)))->objectType != OBJECT_STRING){
+					push(NUMBER(0));
+					runtimeError("Cannot convert provided value type to number");
+					return false;
+				}
+				ObjectString* str = AS_STRING_OBJ(peek(0));
+				num = strtod(str->string, &ptr);
+				push(NUMBER(num));
+			}
+			break;
+	}
+	return true;
 }
 

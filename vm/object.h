@@ -3,15 +3,25 @@
 
 #include "../common.h"
 
+// Rely on forward declaration for Chunk
+// since "chunk.h" uses "object.h", so cannot include "chunk.h"
+typedef struct Chunk Chunk;
+
 typedef enum{
 	OBJECT_STRING,
+	OBJECT_FUNCTION,
+	OBJECT_NATIVE_FUNCTION,
 } ObjectType;
 
-struct Object{
+typedef enum{
+	FUNCTION_MAIN,
+	FUNCTION,
+} FunctionType;
+
+typedef struct Object{
 	ObjectType objectType;	
 	struct Object* next;
-};
-typedef struct Object Object;
+} Object;
 
 typedef struct{
 	Object object;
@@ -20,8 +30,26 @@ typedef struct{
 	uint32_t hash;
 } ObjectString;
 
+typedef struct{
+	Object object;
+	int arity;
+	ObjectString* name;
+	Chunk* chunk;
+} ObjectFunction;
+
+typedef bool (*NativeFunction) ();
+
+typedef struct{
+	Object object;
+	int arity;
+	ObjectString* name;
+	NativeFunction nativeFunction;
+} ObjectNativeFunction;
+
 ObjectString* makeStringObject(const char*,int);
 ObjectString* allocateStringObject(char*, int);
+ObjectFunction* makeNewFunctionObject();
+ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString*, int, NativeFunction);
 Object* allocateObject(int,ObjectType);
 uint32_t jenkinsHash(const char*,int);
 

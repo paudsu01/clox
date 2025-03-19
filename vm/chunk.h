@@ -31,10 +31,11 @@ typedef enum {
 	OP_JUMP_IF_TRUE,
 	OP_JUMP,
 	OP_LOOP,
+	OP_CALL,
 } OPCode;
 
 // Struct
-typedef struct{
+typedef struct Chunk{
 	int capacity;
 	int count;
 	uint8_t *code;		

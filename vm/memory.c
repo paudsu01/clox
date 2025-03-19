@@ -34,6 +34,19 @@ void freeObject(Object* object){
 				reallocate(objectString, sizeof(*objectString), 0);
 			}
 			break;
+		case OBJECT_FUNCTION:
+			{
+				ObjectFunction* objectFunction = (ObjectFunction*)object;
+				freeChunk(objectFunction->chunk);
+				reallocate(objectFunction, sizeof(*objectFunction), 0);
+			}
+			break;
+		case OBJECT_NATIVE_FUNCTION:
+			{
+				ObjectNativeFunction* objectNativeFunction = (ObjectNativeFunction*)object;
+				reallocate(objectNativeFunction, sizeof(*objectNativeFunction), 0);
+			}
+			break;
 		default:
 			break;
 	}
