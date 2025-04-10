@@ -231,7 +231,9 @@ static void parseFuncDeclaration(){
 	ObjectFunction* function = endCompiler();
 	function->arity = nargs;
 
-	emitConstant(OBJECT(function));
+	emitByte(OP_CLOSURE);
+	index = addConstantAndCheckLimit(OBJECT(function));
+	emitByte(index);
 	
 	// emit byte to add it to global hash table if it is a global variable
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);

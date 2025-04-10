@@ -243,6 +243,14 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_CLOSURE:
+				{
+					ObjectFunction* function = AS_FUNCTION_OBJ(READ_CONSTANT());
+					ObjectClosure* closure = makeNewFunctionClosureObject(function);
+					push(OBJECT(closure));
+				}
+				break;
+
 			case OP_CALL:
 				{
 					uint8_t nargs = READ_BYTE();
