@@ -13,7 +13,7 @@ typedef enum{
 } InterpreterResult;
 
 typedef struct{
-	ObjectFunction* function;
+	ObjectClosure* closure;
 	uint8_t* ip;
 	Value* stackStart;
 } CallFrame;
@@ -36,7 +36,7 @@ void freeVM();
 
 // Call frame function prototypes
 void initCallFrame(CallFrame*);
-void addFunctionToCurrentCallFrame(CallFrame*, ObjectFunction*);
+void addClosureToCurrentCallFrame(CallFrame*, ObjectClosure*);
 
 InterpreterResult interpret(const char* source);
 InterpreterResult runVM();

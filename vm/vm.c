@@ -24,17 +24,18 @@ void initVM(){
 void initCallFrame(CallFrame* frame){
 	frame->ip = NULL;
 	frame->stackStart = vm.stackpointer;
-	frame->function = NULL;
+	frame->closure = NULL;
 }
 
-void addFunctionToCurrentCallFrame(CallFrame* frame, ObjectFunction* function){
-	frame->function = function;
-	frame->ip = function->chunk->code;
+void addClosureToCurrentCallFrame(CallFrame* frame, ObjectClosure* closure){
+	frame->closure = closure;
+	frame->ip = closure->function->chunk->code;
 }
 
 InterpreterResult interpret(const char* source){
 
 	ObjectFunction* currentFunction = compile(source);
+	ObjectClosure* currentClosure = makeNewFunctionClosureObject(currentFunction);
 
 	if (currentFunction == NULL){
 		return COMPILE_ERROR;
@@ -44,8 +45,8 @@ InterpreterResult interpret(const char* source){
 
 		CallFrame* frame = &(vm.frames[vm.frameCount=0]);
 		initCallFrame(frame);
-		addFunctionToCurrentCallFrame(frame, currentFunction);
-		push(OBJECT(currentFunction));
+		addClosureToCurrentCallFrame(frame, currentClosure);
+		push(OBJECT(currentClosure));
 
 		return runVM();
 	}
@@ -56,11 +57,11 @@ InterpreterResult runVM(){
 	CallFrame* frame = &vm.frames[vm.frameCount++];
 
 	#define READ_BYTE() *(frame->ip++)
-	#define READ_CONSTANT() (frame->function->chunk->constants).values[READ_BYTE()]
+	#define READ_CONSTANT() (frame->closure->function->chunk->constants).values[READ_BYTE()]
 	#define READ_2BYTES() ((uint16_t) (*frame->ip << 8)) + *(frame->ip+1)
 		
 
-	#define BYTES_LEFT_TO_EXECUTE() (frame->ip < (frame->function->chunk->code + frame->function->chunk->count))
+	#define BYTES_LEFT_TO_EXECUTE() (frame->ip < (frame->closure->function->chunk->code + frame->closure->function->chunk->count))
 
 	#define BINARY_OP(resultValue, op, type) \
 			do { 	Value b = peek(0); Value a=peek(1); \
@@ -85,7 +86,7 @@ InterpreterResult runVM(){
 		
 		#ifdef DEBUG_TRACE_EXECUTION
 			disassembleVMStack();
-			disassembleInstruction(frame->function->chunk, (int) ((frame->ip) - (frame->function->chunk->code)));
+			disassembleInstruction(frame->closure->function->chunk, (int) ((frame->ip) - (frame->closure->function->chunk->code)));
 		#endif
 
 		uint8_t byte = READ_BYTE();
@@ -270,16 +271,18 @@ InterpreterResult runVM(){
 								push(nativeValue);
 							}
 								break;
-							case OBJECT_FUNCTION:
+							case OBJECT_CLOSURE:
 							{
 								frame = &(vm.frames[vm.frameCount++]);
 								initCallFrame(frame);
-								addFunctionToCurrentCallFrame(frame, AS_FUNCTION_OBJ(funcVal));
+								addClosureToCurrentCallFrame(frame, AS_CLOSURE_OBJ(funcVal));
 								frame->stackStart = vm.stackpointer - nargs - 1;
 							}
 								break;
+							//Unreachable since every ObjectFunction object is wrapped around ObjectClosure
+							case OBJECT_FUNCTION:
+								break;
 							default:
-								//Unreachable
 								break;
 						}
 					} else return RUNTIME_ERROR;
@@ -364,10 +367,10 @@ void runtimeError(char* format, ...){
 	
 	for (int frameIndex=vm.frameCount; frameIndex>0; frameIndex--){
 		CallFrame* frame = &vm.frames[frameIndex - 1];
-		int index = frame->ip - 1 - frame->function->chunk->code;
-		int line = frame->function->chunk->lines[index];
-		if (frame->function->name == NULL) fprintf(stderr, "line [%d] : in < script >\n", line);
-		else fprintf(stderr, "line [%d] : in `%s()`\n", line, frame->function->name->string);
+		int index = frame->ip - 1 - frame->closure->function->chunk->code;
+		int line = frame->closure->function->chunk->lines[index];
+		if (frame->closure->function->name == NULL) fprintf(stderr, "line [%d] : in < script >\n", line);
+		else fprintf(stderr, "line [%d] : in `%s()`\n", line, frame->closure->function->name->string);
 	}
 
 	resetStack();
@@ -381,8 +384,8 @@ bool callNoErrors(int nargs, Value funcVal){
 			switch (AS_OBJ(funcVal)->objectType){
 				case OBJECT_NATIVE_FUNCTION:
 					arity = (AS_NATIVE_FUNCTION_OBJ(funcVal))->arity;
-				case OBJECT_FUNCTION:{
-					if (AS_OBJ(funcVal)->objectType == OBJECT_FUNCTION) arity = (AS_FUNCTION_OBJ(funcVal))->arity;
+				case OBJECT_CLOSURE:{
+					arity = (AS_CLOSURE_OBJ(funcVal))->function->arity;
 					if (nargs != arity){
 						runtimeError("Expected %d arguments, got %d", arity, nargs);
 						return false;
