@@ -19,11 +19,21 @@ typedef struct{
 	int depth;
 } Local;
 
+typedef struct{
+	int index;
+	bool isLocal;
+} Upvalue;
+
 typedef struct Compiler{
 	struct Compiler* parentCompiler;
+
 	Local locals[UINT8_T_LIMIT+1];
-	int currentScopeDepth;
 	int currentLocalsCount;
+	Upvalue upvalues[UINT8_T_LIMIT+1];
+	int currentUpvaluesCount;
+
+	int currentScopeDepth;
+
 	ObjectFunction* function;
 	FunctionType type;
 } Compiler;

@@ -25,6 +25,7 @@ static void beginScope();
 static void endScope();
 static Chunk* currentChunk();
 static int getLocalDepth(Token);
+static int getUpvalueDepth(Token);
 static bool noDuplicateVarInCurrentScope();
 static bool identifiersEqual(Token*,Token*);
 static void markInitialized();
@@ -122,6 +123,7 @@ void initCompiler(Compiler* compiler, FunctionType type){
 	compiler->parentCompiler = currentCompiler;
 	compiler->currentScopeDepth = 0;
 	compiler->currentLocalsCount = 0;
+	compiler->currentUpvaluesCount = 0;
 
 	compiler->type = type;
 	compiler->function = makeNewFunctionObject();
@@ -467,11 +469,18 @@ static void parseIdentifier(bool canAssign){
 		get_op = OP_GET_GLOBAL; 
 		Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
 		index = addConstantAndCheckLimit(value);
-
 	} else{
-		// Local variable
-		set_op = OP_SET_LOCAL; 
-		get_op = OP_GET_LOCAL; 
+		int upvalueIndex;
+		if ((upvalueIndex = getUpvalueDepth(parser.previousToken)) == -1){
+			// Local variable
+			set_op = OP_SET_LOCAL; 
+			get_op = OP_GET_LOCAL; 
+		} else{
+			set_op = OP_SET_UPVALUE; 
+			get_op = OP_GET_UPVALUE; 
+			// Upvalue from surrounding function
+			index = upvalueIndex;
+		}
 	}
 
 	if (canAssign && matchToken(TOKEN_EQUAL)){
@@ -787,6 +796,19 @@ static int getLocalDepth(Token token){
 	return -1;
 }
 
+static int getUpvalueDepth(Token token){
+	Compiler* current = currentCompiler;
+	currentCompiler = currentCompiler->parentCompiler;
+
+	int index = getLocalDepth(token);
+	if (index != -1){
+		currentCompiler->upvalues[currentCompiler->currentUpvaluesCount] = (Upvalue) {.index=index, .isLocal=true};	
+		index = currentCompiler->currentUpvaluesCount++;
+	}
+
+	currentCompiler = current;
+	return index;
+}
 static Chunk* currentChunk(){
 	return currentCompiler->function->chunk;
 }
