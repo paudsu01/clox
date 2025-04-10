@@ -799,14 +799,25 @@ static int getLocalDepth(Token token){
 static int getUpvalueDepth(Token token){
 	Compiler* current = currentCompiler;
 	currentCompiler = currentCompiler->parentCompiler;
-
 	int index = getLocalDepth(token);
+	currentCompiler = current;
+
+	// If none exists, create a new one
 	if (index != -1){
-		currentCompiler->upvalues[currentCompiler->currentUpvaluesCount] = (Upvalue) {.index=index, .isLocal=true};	
-		index = currentCompiler->currentUpvaluesCount++;
+		// Look for an existing upvalue in the array rather than creating a new one
+		for (int upvalueIndex=0; upvalueIndex < current->currentUpvaluesCount ;upvalueIndex++){
+			if (currentCompiler->upvalues[upvalueIndex].index == index){
+				return upvalueIndex;
+			}
+		}
+		
+		if (currentCompiler->currentUpvaluesCount == UINT8_T_LIMIT) errorAtPreviousToken("Cannot have more than 255 upvalues !");
+		else {
+			currentCompiler->upvalues[currentCompiler->currentUpvaluesCount] = (Upvalue) {.index=index, .isLocal=true};	
+			index = currentCompiler->currentUpvaluesCount++;
+		}
 	}
 
-	currentCompiler = current;
 	return index;
 }
 static Chunk* currentChunk(){
