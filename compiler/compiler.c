@@ -465,23 +465,23 @@ static void parseIdentifier(bool canAssign){
 	int index = getLocalDepth(currentCompiler, parser.previousToken);
 	uint8_t set_op, get_op;
 	if (index == -1){
-		// Global variable
-		set_op = OP_SET_GLOBAL; 
-		get_op = OP_GET_GLOBAL; 
-		Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
-		index = addConstantAndCheckLimit(value);
-	} else{
 		int upvalueIndex;
 		if ((upvalueIndex = getUpvalueDepth(currentCompiler, parser.previousToken)) == -1){
+			// Global variable
+			set_op = OP_SET_GLOBAL; 
+			get_op = OP_GET_GLOBAL; 
+			Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
+			index = addConstantAndCheckLimit(value);
+		} else {
+			// Upvalue 
+			set_op = OP_SET_UPVALUE; 
+			get_op = OP_GET_UPVALUE; 
+			index = upvalueIndex;
+		}
+	} else{
 			// Local variable
 			set_op = OP_SET_LOCAL; 
 			get_op = OP_GET_LOCAL; 
-		} else{
-			set_op = OP_SET_UPVALUE; 
-			get_op = OP_GET_UPVALUE; 
-			// Upvalue from surrounding function
-			index = upvalueIndex;
-		}
 	}
 
 	if (canAssign && matchToken(TOKEN_EQUAL)){

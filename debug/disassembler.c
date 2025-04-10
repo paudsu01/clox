@@ -142,6 +142,15 @@ int disassembleInstruction(Chunk* chunk, int index){
 			handleConstantInstruction(chunk, ++index);
 			break;
 
+		case OP_GET_UPVALUE:
+			printf("OP_GET_UPVALUE\t");
+			handleByteInstruction(chunk, ++index);
+			break;
+		case OP_SET_UPVALUE:
+			printf("OP_SET_UPVALUE\t");
+			handleByteInstruction(chunk, ++index);
+			break;
+
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;
