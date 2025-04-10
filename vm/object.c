@@ -58,6 +58,12 @@ ObjectFunction* makeNewFunctionObject(){
 	return objFunction;
 }
 
+ObjectClosure* makeNewFunctionClosureObject(ObjectFunction* function){
+	ObjectClosure* objFuncClosure = (ObjectClosure *) allocateObject(sizeof(ObjectClosure), OBJECT_CLOSURE);
+	objFuncClosure->function = function;
+	return objFuncClosure;
+}
+
 ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString* name, int arity, NativeFunction function){
 	
 	ObjectNativeFunction* objFunction = (ObjectNativeFunction *) allocateObject(sizeof(ObjectNativeFunction), OBJECT_NATIVE_FUNCTION);

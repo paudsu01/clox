@@ -47,6 +47,11 @@ void freeObject(Object* object){
 				reallocate(objectNativeFunction, sizeof(*objectNativeFunction), 0);
 			}
 			break;
+		case OBJECT_CLOSURE:
+			{
+				ObjectClosure* objectClosure = (ObjectClosure*) object;
+				reallocate(objectClosure, sizeof(*objectClosure), 0);
+			}
 		default:
 			break;
 	}
