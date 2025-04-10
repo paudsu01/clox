@@ -24,8 +24,9 @@ static void handleLocalVariable();
 static void beginScope();
 static void endScope();
 static Chunk* currentChunk();
-static int getLocalDepth(Token);
-static int getUpvalueDepth(Token);
+static int getLocalDepth(Compiler*, Token);
+static int getUpvalueDepth(Compiler*, Token);
+static int addUpvalue(Compiler*, int, bool);
 static bool noDuplicateVarInCurrentScope();
 static bool identifiersEqual(Token*,Token*);
 static void markInitialized();
@@ -461,7 +462,7 @@ static void parseLiteral(bool canAssign){
 
 static void parseIdentifier(bool canAssign){
 
-	int index = getLocalDepth(parser.previousToken);
+	int index = getLocalDepth(currentCompiler, parser.previousToken);
 	uint8_t set_op, get_op;
 	if (index == -1){
 		// Global variable
@@ -471,7 +472,7 @@ static void parseIdentifier(bool canAssign){
 		index = addConstantAndCheckLimit(value);
 	} else{
 		int upvalueIndex;
-		if ((upvalueIndex = getUpvalueDepth(parser.previousToken)) == -1){
+		if ((upvalueIndex = getUpvalueDepth(currentCompiler, parser.previousToken)) == -1){
 			// Local variable
 			set_op = OP_SET_LOCAL; 
 			get_op = OP_GET_LOCAL; 
@@ -783,10 +784,10 @@ static void handleLocalVariable(){
 	}
 }
 
-static int getLocalDepth(Token token){
+static int getLocalDepth(Compiler* compiler, Token token){
 	// search if any such token in compiler locals array
-	for (int i=(currentCompiler->currentLocalsCount -1); i>=0; i--){
-		Local* pLocal = &(currentCompiler->locals[i]);
+	for (int i=(compiler->currentLocalsCount -1); i>=0; i--){
+		Local* pLocal = &(compiler->locals[i]);
 		Token* secondToken = &(pLocal->name);
 		if (identifiersEqual(&token, secondToken)){
 			if (pLocal->depth == -1) errorAtPreviousToken("Can't read local variable in its own initializer");
@@ -796,30 +797,35 @@ static int getLocalDepth(Token token){
 	return -1;
 }
 
-static int getUpvalueDepth(Token token){
-	Compiler* current = currentCompiler;
-	currentCompiler = currentCompiler->parentCompiler;
-	int index = getLocalDepth(token);
-	currentCompiler = current;
-
-	// If none exists, create a new one
-	if (index != -1){
-		// Look for an existing upvalue in the array rather than creating a new one
-		for (int upvalueIndex=0; upvalueIndex < current->currentUpvaluesCount ;upvalueIndex++){
-			if (currentCompiler->upvalues[upvalueIndex].index == index){
-				return upvalueIndex;
-			}
-		}
-		
-		if (currentCompiler->currentUpvaluesCount == UINT8_T_LIMIT) errorAtPreviousToken("Cannot have more than 255 upvalues !");
-		else {
-			currentCompiler->upvalues[currentCompiler->currentUpvaluesCount] = (Upvalue) {.index=index, .isLocal=true};	
-			index = currentCompiler->currentUpvaluesCount++;
+static int addUpvalue(Compiler* compiler, int index, bool isLocal){
+	Upvalue upvalue;
+	for (int upvalueIndex=0; upvalueIndex < compiler->currentUpvaluesCount ;upvalueIndex++){
+		upvalue = compiler->upvalues[upvalueIndex];
+		if (upvalue.index == index && upvalue.isLocal == isLocal){
+			return upvalueIndex;
 		}
 	}
 
+	if (compiler->currentUpvaluesCount == UINT8_T_LIMIT) errorAtPreviousToken("Cannot add more closure variables in function");
+	
+	compiler->upvalues[compiler->currentUpvaluesCount] = (Upvalue) {.index=index, .isLocal=isLocal};	
+	index = compiler->currentUpvaluesCount++;
 	return index;
 }
+
+static int getUpvalueDepth(Compiler* compiler, Token token){
+	if (compiler->parentCompiler == NULL) return -1;
+	bool isLocal = true;
+
+	int index = getLocalDepth(compiler->parentCompiler, token);
+	if (index == -1){
+		index = getUpvalueDepth(compiler->parentCompiler, token);
+		isLocal = false;
+	}
+
+	return addUpvalue(compiler, index, isLocal);
+}
+
 static Chunk* currentChunk(){
 	return currentCompiler->function->chunk;
 }
