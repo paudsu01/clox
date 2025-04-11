@@ -14,7 +14,7 @@ typedef enum{
 } ValueType;
 
 // struct declaration
-typedef struct{
+typedef struct Value{
 	ValueType type;
 	union{
 		double number;
@@ -28,6 +28,13 @@ typedef struct{
 	int capacity;
 	Value* values;
 } ValueArray;
+
+// ObjectUpvalue struct defined here instead of "object.h"
+typedef struct ObjectUpvalue{
+	Object object;
+	Value* value;
+	Value closedValue;
+} ObjectUpvalue;
 
 // function prototypes
 void initValueArray(ValueArray*);

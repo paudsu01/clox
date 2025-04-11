@@ -62,6 +62,7 @@ ObjectFunction* makeNewFunctionObject(){
 ObjectClosure* makeNewFunctionClosureObject(ObjectFunction* function){
 	ObjectClosure* objFuncClosure = (ObjectClosure *) allocateObject(sizeof(ObjectClosure), OBJECT_CLOSURE);
 	objFuncClosure->function = function;
+	objFuncClosure->objUpvalues = reallocate(NULL, 0, (sizeof(ObjectUpvalue*) * function->upvaluesCount));
 	return objFuncClosure;
 }
 
@@ -74,6 +75,11 @@ ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString* name, int arity,
 	return objFunction;
 }
 
+ObjectUpvalue* makeNewUpvalueObject(Value* value){
+	ObjectUpvalue* objUpvalue = (ObjectUpvalue *) allocateObject(sizeof(ObjectUpvalue), OBJECT_UPVALUE);
+	objUpvalue->value = value;
+	return objUpvalue;
+}
 
 uint32_t jenkinsHash(const char* key, int length){
 	// Jenkins hash function

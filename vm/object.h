@@ -3,15 +3,19 @@
 
 #include "../common.h"
 
+// ObjectUpvalue defined in "value.h" because of circular dependency problems
+
 // Rely on forward declaration for Chunk
 // since "chunk.h" uses "object.h", so cannot include "chunk.h"
 typedef struct Chunk Chunk;
+typedef struct ObjectUpvalue ObjectUpvalue;
 
 typedef enum{
 	OBJECT_STRING,
 	OBJECT_FUNCTION,
 	OBJECT_NATIVE_FUNCTION,
 	OBJECT_CLOSURE,
+	OBJECT_UPVALUE,
 } ObjectType;
 
 typedef enum{
@@ -42,6 +46,7 @@ typedef struct{
 typedef struct{
 	Object object;
 	ObjectFunction* function;
+	ObjectUpvalue** objUpvalues;
 } ObjectClosure;
 
 typedef bool (*NativeFunction) ();
