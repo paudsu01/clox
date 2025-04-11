@@ -75,9 +75,8 @@ ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString* name, int arity,
 	return objFunction;
 }
 
-ObjectUpvalue* makeNewUpvalueObject(Value* value){
+ObjectUpvalue* makeNewUpvalueObject(){
 	ObjectUpvalue* objUpvalue = (ObjectUpvalue *) allocateObject(sizeof(ObjectUpvalue), OBJECT_UPVALUE);
-	objUpvalue->value = value;
 	return objUpvalue;
 }
 

@@ -244,11 +244,39 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_GET_UPVALUE:
+				{
+					int index = READ_BYTE();
+					ObjectUpvalue* objUpvalue = *(frame->closure->objUpvalues + index);
+					push(*(objUpvalue->value));
+				}
+				break;
+
+			case OP_SET_UPVALUE:
+				{
+					int index = READ_BYTE();
+					ObjectUpvalue* objUpvalue = *(frame->closure->objUpvalues + index);
+					*(objUpvalue->value) = peek(0);
+				}
+				break;
+
 			case OP_CLOSURE:
 				{
 					ObjectFunction* function = AS_FUNCTION_OBJ(READ_CONSTANT());
 					ObjectClosure* closure = makeNewFunctionClosureObject(function);
 					push(OBJECT(closure));
+
+					for (int i=0; i<function->upvaluesCount; i++){
+						uint8_t instruction = READ_BYTE();
+						uint8_t index = READ_BYTE();
+						if (instruction == OP_CLOSE_LOCAL){
+							closure->objUpvalues[i] = makeNewUpvalueObject();
+							closure->objUpvalues[i]->value = (frame->stackStart + index);
+						} else {
+							closure->objUpvalues[i] = frame->closure->objUpvalues[index];
+						}
+
+					}
 				}
 				break;
 
