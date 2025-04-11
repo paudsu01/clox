@@ -52,6 +52,7 @@ ObjectFunction* makeNewFunctionObject(){
 	ObjectFunction* objFunction = (ObjectFunction *) allocateObject(sizeof(ObjectFunction), OBJECT_FUNCTION);
 	objFunction->name = NULL;
 	objFunction->arity = 0;
+	objFunction->upvaluesCount = 0;
 	objFunction->chunk = (Chunk*) reallocate(NULL,0,sizeof(Chunk));
 	initChunk(objFunction->chunk);
 

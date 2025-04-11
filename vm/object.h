@@ -34,6 +34,7 @@ typedef struct{
 typedef struct{
 	Object object;
 	int arity;
+	int upvaluesCount;
 	ObjectString* name;
 	Chunk* chunk;
 } ObjectFunction;

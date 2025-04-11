@@ -35,6 +35,8 @@ typedef enum {
 	OP_LOOP,
 	OP_CALL,
 	OP_CLOSURE,
+	OP_CLOSE_LOCAL,
+	OP_CLOSE_UPVALUE,
 } OPCode;
 
 // Struct

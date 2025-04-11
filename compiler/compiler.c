@@ -233,10 +233,16 @@ static void parseFuncDeclaration(){
 	// push the function onto the stack
 	ObjectFunction* function = endCompiler();
 	function->arity = nargs;
+	function->upvaluesCount = newCompiler.currentUpvaluesCount;
 
 	emitByte(OP_CLOSURE);
 	int funcIndex = addConstantAndCheckLimit(OBJECT(function));
 	emitByte(funcIndex);
+
+	for (int i=0; i< newCompiler.currentUpvaluesCount; i++){
+		Upvalue upvalue = newCompiler.upvalues[i];
+		emitBytes((upvalue.isLocal) ? OP_CLOSE_LOCAL: OP_CLOSE_UPVALUE, upvalue.index);
+	}
 	
 	// emit byte to add it to global hash table if it is a global variable
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
