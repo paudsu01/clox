@@ -46,6 +46,7 @@ typedef struct{
 typedef struct{
 	Object object;
 	ObjectFunction* function;
+	int upvaluesCount;
 	ObjectUpvalue** objUpvalues;
 } ObjectClosure;
 

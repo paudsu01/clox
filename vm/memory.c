@@ -50,8 +50,9 @@ void freeObject(Object* object){
 		case OBJECT_CLOSURE:
 			{
 				ObjectClosure* objectClosure = (ObjectClosure*) object;
-				FREE_ARRAY(ObjectUpvalue*, *(objectClosure->objUpvalues), objectClosure->function->upvaluesCount);
+				FREE_ARRAY(ObjectUpvalue*, objectClosure->objUpvalues, objectClosure->upvaluesCount);
 				reallocate(objectClosure, sizeof(*objectClosure), 0);
+				break;
 			}
 		case OBJECT_UPVALUE:
 			{

@@ -62,6 +62,7 @@ ObjectFunction* makeNewFunctionObject(){
 ObjectClosure* makeNewFunctionClosureObject(ObjectFunction* function){
 	ObjectClosure* objFuncClosure = (ObjectClosure *) allocateObject(sizeof(ObjectClosure), OBJECT_CLOSURE);
 	objFuncClosure->function = function;
+	objFuncClosure->upvaluesCount = function->upvaluesCount;
 	objFuncClosure->objUpvalues = reallocate(NULL, 0, (sizeof(ObjectUpvalue*) * function->upvaluesCount));
 	return objFuncClosure;
 }
