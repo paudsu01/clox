@@ -64,7 +64,7 @@ ObjectString* allocateStringObject(char*, int);
 ObjectFunction* makeNewFunctionObject();
 ObjectClosure* makeNewFunctionClosureObject(ObjectFunction*);
 ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString*, int, NativeFunction);
-ObjectUpvalue* makeNewUpvalueObject();
+ObjectUpvalue* makeNewUpvalueObject(int);
 Object* allocateObject(int,ObjectType);
 uint32_t jenkinsHash(const char*,int);
 

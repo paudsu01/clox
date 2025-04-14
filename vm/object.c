@@ -81,8 +81,14 @@ ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString* name, int arity,
 	return objFunction;
 }
 
-ObjectUpvalue* makeNewUpvalueObject(){
-	ObjectUpvalue* objUpvalue = (ObjectUpvalue *) allocateObject(sizeof(ObjectUpvalue), OBJECT_UPVALUE);
+ObjectUpvalue* makeNewUpvalueObject(int index){
+	ObjectUpvalue* objUpvalue;
+
+	// Reuse objUpvalue if an open upvalue already exists
+	if ((objUpvalue = vm.openObjUpvalues[index]) == NULL) {
+		objUpvalue = (ObjectUpvalue *) allocateObject(sizeof(ObjectUpvalue), OBJECT_UPVALUE);
+	}
+
 	return objUpvalue;
 }
 

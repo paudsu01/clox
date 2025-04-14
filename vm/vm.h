@@ -24,6 +24,7 @@ typedef struct{
 
 	Value* stackpointer;
 	Value stack[STACK_MAX_SIZE];
+	ObjectUpvalue* openObjUpvalues[STACK_MAX_SIZE];
 
 	Object* objects;
 	Table strings;
@@ -58,5 +59,6 @@ void push(Value);
 Value pop();
 Value peek(int);
 void resetStack();
+void resetOpenObjUpvalues();
 
 #endif

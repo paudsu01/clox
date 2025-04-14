@@ -18,6 +18,7 @@ void initVM(){
 	initTable(&vm.strings);
 	initTable(&vm.globals);
 	resetStack();
+	resetOpenObjUpvalues();
 	declareNativeFunctions();
 }
 
@@ -270,7 +271,7 @@ InterpreterResult runVM(){
 						uint8_t instruction = READ_BYTE();
 						uint8_t index = READ_BYTE();
 						if (instruction == OP_CLOSE_LOCAL){
-							closure->objUpvalues[i] = makeNewUpvalueObject();
+							closure->objUpvalues[i] = makeNewUpvalueObject((frame->stackStart+index) - vm.stack);
 							closure->objUpvalues[i]->value = (frame->stackStart + index);
 						} else {
 							closure->objUpvalues[i] = frame->closure->objUpvalues[index];
@@ -449,6 +450,12 @@ Value peek(int depth){
 
 void resetStack(){
 	vm.stackpointer = vm.stack;
+}
+
+void resetOpenObjUpvalues(){
+	for (int i=0; i < STACK_MAX_SIZE; i++){
+		vm.openObjUpvalues[i] = NULL;
+	}
 }
 
 // Functions for native functions in Lox
