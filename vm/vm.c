@@ -95,6 +95,10 @@ InterpreterResult runVM(){
 			case OP_RETURN:
 				{
 					Value returnValue = pop();
+
+					// Handle any open upvalues that need to be closed
+					closeObjUpvalues();
+
 					vm.stackpointer = frame->stackStart;
 					// no need to push the `nil` value for the main function
 					if (vm.frameCount > 1){
@@ -397,6 +401,21 @@ void closeObjUpvalue(int index){
 		upvalue->value = &upvalue->closedValue;
 
 		vm.openObjUpvalues[index] = NULL;
+	}
+}
+
+void closeObjUpvalues(){
+	// This function is called during OP_RETURN execution
+	// since the OP_POP_UPVALUE instruction won't execute during function returns since
+	// the stackpointer is mutated instead, we will need to emulate as if we are running OP_POP_UPVALUE instructions
+	// The idea is just to go through the vm.openObjUpalues array from the frame's starting stack index till the current stackpointer and close the open upvalue if its applicable
+	
+	Value* currentStackSlot = vm.stackpointer - 1;
+	Value* stackStartForFrame = (vm.frames[vm.frameCount-1]).stackStart;
+	while (currentStackSlot >= stackStartForFrame){
+
+		closeObjUpvalue(currentStackSlot - stackStartForFrame);
+		currentStackSlot--;
 	}
 }
 
