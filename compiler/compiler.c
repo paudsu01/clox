@@ -833,7 +833,7 @@ static int getUpvalueDepth(Compiler* compiler, Token token){
 		isLocal = false;
 	}
 
-	return addUpvalue(compiler, index, isLocal);
+	return (index == -1) ? -1 : addUpvalue(compiler, index, isLocal);
 }
 
 static Chunk* currentChunk(){
