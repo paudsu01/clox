@@ -21,6 +21,7 @@ typedef enum {
 	OP_GT,
 	OP_LT,
 	OP_POP,
+	OP_POP_UPVALUE,
 	OP_PRINT,
 	OP_DEFINE_GLOBAL,
 	OP_GET_GLOBAL,

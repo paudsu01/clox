@@ -115,6 +115,11 @@ int disassembleInstruction(Chunk* chunk, int index){
 			printf("OP_POP\n");
 			break;
 
+		case OP_POP_UPVALUE:
+			printf("OP_POP_UPVALUE\n");
+			break;
+
+
 		case OP_JUMP:
 			printf("OP_JUMP\t");
 			handleJumpInstruction(OP_JUMP, chunk, index = index + 2);

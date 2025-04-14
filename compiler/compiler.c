@@ -132,6 +132,7 @@ void initCompiler(Compiler* compiler, FunctionType type){
 	// Assign first slot to the current function
 	Local* local = &compiler->locals[compiler->currentLocalsCount++];
 	local->depth = 0;
+	local->isCaptured = false;
 	local->name.start = "";
 	local->name.length = 0;
 
@@ -783,7 +784,7 @@ static void handleLocalVariable(){
 
 	} else{
 		if (noDuplicateVarInCurrentScope()) {
-			currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = -1, .name=parser.previousToken};
+			currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = -1, .name=parser.previousToken, .isCaptured = false};
 		} else{
 			errorAtPreviousToken("Local variable cannot be re-initialized!");
 		}
@@ -815,6 +816,9 @@ static int addUpvalue(Compiler* compiler, int index, bool isLocal){
 	if (compiler->currentUpvaluesCount == UINT8_T_LIMIT) errorAtPreviousToken("Cannot add more closure variables in function");
 	
 	compiler->upvalues[compiler->currentUpvaluesCount] = (Upvalue) {.index=index, .isLocal=isLocal};	
+
+	if (isLocal) compiler->parentCompiler->locals[index].isCaptured = true;
+	
 	index = compiler->currentUpvaluesCount++;
 	return index;
 }
@@ -846,8 +850,10 @@ static void endScope(){
        	int i = currentCompiler->currentLocalsCount - 1;
        	while (i >= 0 && currentCompiler->locals[i].depth > currentCompiler->currentScopeDepth){
 
+	       if (currentCompiler->locals[i].isCaptured) emitByte(OP_POP_UPVALUE);
+	       else emitByte(OP_POP);
+
 	       currentCompiler->currentLocalsCount--;
-	       emitByte(OP_POP);
 	       i--;
 
 	}

@@ -64,6 +64,11 @@ ObjectClosure* makeNewFunctionClosureObject(ObjectFunction* function){
 	objFuncClosure->function = function;
 	objFuncClosure->upvaluesCount = function->upvaluesCount;
 	objFuncClosure->objUpvalues = reallocate(NULL, 0, (sizeof(ObjectUpvalue*) * function->upvaluesCount));
+	
+	for (int i = 0; i < function->upvaluesCount; i++){
+		objFuncClosure->objUpvalues[i] = NULL;
+	}
+
 	return objFuncClosure;
 }
 

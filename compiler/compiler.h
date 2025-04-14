@@ -16,6 +16,7 @@ typedef struct{
 
 typedef struct{
 	Token name;
+	bool isCaptured;
 	int depth;
 } Local;
 
