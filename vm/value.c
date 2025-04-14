@@ -61,7 +61,12 @@ void printObject(Object* object){
 		case OBJECT_NATIVE_FUNCTION:
 			printf("< native fn: %s >", ((ObjectNativeFunction*) (object))->name->string);
 			break;
-
+		case OBJECT_CLOSURE:
+			printFunction(((ObjectClosure *)object)->function);
+			break;
+		case OBJECT_UPVALUE:
+			printf("< builtin obj: UPVALUE >");
+			break;
 		default:
 			break;
 	}

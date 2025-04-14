@@ -52,10 +52,24 @@ ObjectFunction* makeNewFunctionObject(){
 	ObjectFunction* objFunction = (ObjectFunction *) allocateObject(sizeof(ObjectFunction), OBJECT_FUNCTION);
 	objFunction->name = NULL;
 	objFunction->arity = 0;
+	objFunction->upvaluesCount = 0;
 	objFunction->chunk = (Chunk*) reallocate(NULL,0,sizeof(Chunk));
 	initChunk(objFunction->chunk);
 
 	return objFunction;
+}
+
+ObjectClosure* makeNewFunctionClosureObject(ObjectFunction* function){
+	ObjectClosure* objFuncClosure = (ObjectClosure *) allocateObject(sizeof(ObjectClosure), OBJECT_CLOSURE);
+	objFuncClosure->function = function;
+	objFuncClosure->upvaluesCount = function->upvaluesCount;
+	objFuncClosure->objUpvalues = reallocate(NULL, 0, (sizeof(ObjectUpvalue*) * function->upvaluesCount));
+	
+	for (int i = 0; i < function->upvaluesCount; i++){
+		objFuncClosure->objUpvalues[i] = NULL;
+	}
+
+	return objFuncClosure;
 }
 
 ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString* name, int arity, NativeFunction function){
@@ -67,6 +81,17 @@ ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString* name, int arity,
 	return objFunction;
 }
 
+ObjectUpvalue* makeNewUpvalueObject(int index){
+	ObjectUpvalue* objUpvalue;
+
+	// Reuse objUpvalue if an open upvalue already exists
+	if ((objUpvalue = vm.openObjUpvalues[index]) == NULL) {
+		objUpvalue = (ObjectUpvalue *) allocateObject(sizeof(ObjectUpvalue), OBJECT_UPVALUE);
+		vm.openObjUpvalues[index] = objUpvalue;
+	}
+
+	return objUpvalue;
+}
 
 uint32_t jenkinsHash(const char* key, int length){
 	// Jenkins hash function

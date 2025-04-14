@@ -47,6 +47,20 @@ void freeObject(Object* object){
 				reallocate(objectNativeFunction, sizeof(*objectNativeFunction), 0);
 			}
 			break;
+		case OBJECT_CLOSURE:
+			{
+				ObjectClosure* objectClosure = (ObjectClosure*) object;
+				FREE_ARRAY(ObjectUpvalue*, objectClosure->objUpvalues, objectClosure->upvaluesCount);
+				reallocate(objectClosure, sizeof(*objectClosure), 0);
+			}
+			break;
+		case OBJECT_UPVALUE:
+			{
+				ObjectUpvalue* objectUpvalue = (ObjectUpvalue*) object;
+				reallocate(objectUpvalue, sizeof(*objectUpvalue), 0);
+				
+			}
+			break;
 		default:
 			break;
 	}

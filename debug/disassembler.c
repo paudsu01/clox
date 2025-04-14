@@ -5,6 +5,7 @@
 static void handleConstantInstruction(Chunk*,int);
 static void handleByteInstruction(Chunk*,int);
 static void handleJumpInstruction(uint8_t, Chunk*,int);
+static int handleClosureUpvalues(Chunk*,int,int);
 
 void disassembleChunk(Chunk* chunk, char name[]){
 	printf("=== %s ===\n", name);
@@ -114,6 +115,11 @@ int disassembleInstruction(Chunk* chunk, int index){
 			printf("OP_POP\n");
 			break;
 
+		case OP_POP_UPVALUE:
+			printf("OP_POP_UPVALUE\n");
+			break;
+
+
 		case OP_JUMP:
 			printf("OP_JUMP\t");
 			handleJumpInstruction(OP_JUMP, chunk, index = index + 2);
@@ -136,6 +142,25 @@ int disassembleInstruction(Chunk* chunk, int index){
 		case OP_CALL:
 			printf("OP_CALL: %d args\n", *((chunk->code)+(++index)));
 			break;
+
+		case OP_CLOSURE:
+			{
+				printf("OP_CLOSURE\n|\t");
+				handleConstantInstruction(chunk, ++index);
+				Value value = *(((chunk->constants).values) + *((chunk->code)+index));
+				index = handleClosureUpvalues(chunk, ++index, (AS_FUNCTION_OBJ(value))->upvaluesCount);
+			}
+			break;
+
+		case OP_GET_UPVALUE:
+			printf("OP_GET_UPVALUE\t");
+			handleByteInstruction(chunk, ++index);
+			break;
+		case OP_SET_UPVALUE:
+			printf("OP_SET_UPVALUE\t");
+			handleByteInstruction(chunk, ++index);
+			break;
+
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;
@@ -174,4 +199,19 @@ static void handleJumpInstruction(uint8_t opcode, Chunk* chunk, int index){
 
 	index = (opcode == OP_LOOP) ? index-jump-1 : index+jump-1;
 	disassembleInstruction(chunk, index);
+}
+
+static int handleClosureUpvalues(Chunk* chunk, int currentIndex, int upvalueCount){
+	for (int i=0; i< upvalueCount; i++){
+
+		uint8_t localOrUpvalue = *(chunk->code + currentIndex++);
+		uint8_t index = *(chunk->code + currentIndex++);
+
+		if (localOrUpvalue == OP_CLOSE_LOCAL){
+			printf("|\tlocal\t%d\n", index);
+		} else if (localOrUpvalue == OP_CLOSE_UPVALUE){
+			printf("|\tupvalue\t%d\n", index);
+		} 
+	}
+	return --currentIndex;
 }

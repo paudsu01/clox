@@ -18,23 +18,25 @@ void initVM(){
 	initTable(&vm.strings);
 	initTable(&vm.globals);
 	resetStack();
+	resetOpenObjUpvalues();
 	declareNativeFunctions();
 }
 
 void initCallFrame(CallFrame* frame){
 	frame->ip = NULL;
 	frame->stackStart = vm.stackpointer;
-	frame->function = NULL;
+	frame->closure = NULL;
 }
 
-void addFunctionToCurrentCallFrame(CallFrame* frame, ObjectFunction* function){
-	frame->function = function;
-	frame->ip = function->chunk->code;
+void addClosureToCurrentCallFrame(CallFrame* frame, ObjectClosure* closure){
+	frame->closure = closure;
+	frame->ip = closure->function->chunk->code;
 }
 
 InterpreterResult interpret(const char* source){
 
 	ObjectFunction* currentFunction = compile(source);
+	ObjectClosure* currentClosure = makeNewFunctionClosureObject(currentFunction);
 
 	if (currentFunction == NULL){
 		return COMPILE_ERROR;
@@ -44,8 +46,8 @@ InterpreterResult interpret(const char* source){
 
 		CallFrame* frame = &(vm.frames[vm.frameCount=0]);
 		initCallFrame(frame);
-		addFunctionToCurrentCallFrame(frame, currentFunction);
-		push(OBJECT(currentFunction));
+		addClosureToCurrentCallFrame(frame, currentClosure);
+		push(OBJECT(currentClosure));
 
 		return runVM();
 	}
@@ -56,11 +58,11 @@ InterpreterResult runVM(){
 	CallFrame* frame = &vm.frames[vm.frameCount++];
 
 	#define READ_BYTE() *(frame->ip++)
-	#define READ_CONSTANT() (frame->function->chunk->constants).values[READ_BYTE()]
+	#define READ_CONSTANT() (frame->closure->function->chunk->constants).values[READ_BYTE()]
 	#define READ_2BYTES() ((uint16_t) (*frame->ip << 8)) + *(frame->ip+1)
 		
 
-	#define BYTES_LEFT_TO_EXECUTE() (frame->ip < (frame->function->chunk->code + frame->function->chunk->count))
+	#define BYTES_LEFT_TO_EXECUTE() (frame->ip < (frame->closure->function->chunk->code + frame->closure->function->chunk->count))
 
 	#define BINARY_OP(resultValue, op, type) \
 			do { 	Value b = peek(0); Value a=peek(1); \
@@ -85,7 +87,7 @@ InterpreterResult runVM(){
 		
 		#ifdef DEBUG_TRACE_EXECUTION
 			disassembleVMStack();
-			disassembleInstruction(frame->function->chunk, (int) ((frame->ip) - (frame->function->chunk->code)));
+			disassembleInstruction(frame->closure->function->chunk, (int) ((frame->ip) - (frame->closure->function->chunk->code)));
 		#endif
 
 		uint8_t byte = READ_BYTE();
@@ -93,6 +95,10 @@ InterpreterResult runVM(){
 			case OP_RETURN:
 				{
 					Value returnValue = pop();
+
+					// Handle any open upvalues that need to be closed
+					closeObjUpvalues();
+
 					vm.stackpointer = frame->stackStart;
 					// no need to push the `nil` value for the main function
 					if (vm.frameCount > 1){
@@ -108,6 +114,11 @@ InterpreterResult runVM(){
 				break;
 
 			case OP_POP:
+				pop();
+				break;
+
+			case OP_POP_UPVALUE:
+				closeObjUpvalue((vm.stackpointer - 1) - vm.stack);
 				pop();
 				break;
 
@@ -243,6 +254,42 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_GET_UPVALUE:
+				{
+					int index = READ_BYTE();
+					ObjectUpvalue* objUpvalue = *(frame->closure->objUpvalues + index);
+					push(*(objUpvalue->value));
+				}
+				break;
+
+			case OP_SET_UPVALUE:
+				{
+					int index = READ_BYTE();
+					ObjectUpvalue* objUpvalue = *(frame->closure->objUpvalues + index);
+					*(objUpvalue->value) = peek(0);
+				}
+				break;
+
+			case OP_CLOSURE:
+				{
+					ObjectFunction* function = AS_FUNCTION_OBJ(READ_CONSTANT());
+					ObjectClosure* closure = makeNewFunctionClosureObject(function);
+					push(OBJECT(closure));
+
+					for (int i=0; i<function->upvaluesCount; i++){
+						uint8_t instruction = READ_BYTE();
+						uint8_t index = READ_BYTE();
+						if (instruction == OP_CLOSE_LOCAL){
+							closure->objUpvalues[i] = makeNewUpvalueObject((frame->stackStart+index) - vm.stack);
+							closure->objUpvalues[i]->value = (frame->stackStart + index);
+						} else {
+							closure->objUpvalues[i] = frame->closure->objUpvalues[index];
+						}
+
+					}
+				}
+				break;
+
 			case OP_CALL:
 				{
 					uint8_t nargs = READ_BYTE();
@@ -262,16 +309,18 @@ InterpreterResult runVM(){
 								push(nativeValue);
 							}
 								break;
-							case OBJECT_FUNCTION:
+							case OBJECT_CLOSURE:
 							{
 								frame = &(vm.frames[vm.frameCount++]);
 								initCallFrame(frame);
-								addFunctionToCurrentCallFrame(frame, AS_FUNCTION_OBJ(funcVal));
+								addClosureToCurrentCallFrame(frame, AS_CLOSURE_OBJ(funcVal));
 								frame->stackStart = vm.stackpointer - nargs - 1;
 							}
 								break;
+							//Unreachable since every ObjectFunction object is wrapped around ObjectClosure
+							case OBJECT_FUNCTION:
+								break;
 							default:
-								//Unreachable
 								break;
 						}
 					} else return RUNTIME_ERROR;
@@ -344,6 +393,32 @@ void mutate_vm_ip(uint8_t opcode, uint16_t offset){
 
 }
 
+void closeObjUpvalue(int index){
+	if (vm.openObjUpvalues[index] != NULL){
+		ObjectUpvalue* upvalue = vm.openObjUpvalues[index];
+
+		upvalue->closedValue = *(upvalue->value);
+		upvalue->value = &upvalue->closedValue;
+
+		vm.openObjUpvalues[index] = NULL;
+	}
+}
+
+void closeObjUpvalues(){
+	// This function is called during OP_RETURN execution
+	// since the OP_POP_UPVALUE instruction won't execute during function returns since
+	// the stackpointer is mutated instead, we will need to emulate as if we are running OP_POP_UPVALUE instructions
+	// The idea is just to go through the vm.openObjUpalues array from the frame's starting stack index till the current stackpointer and close the open upvalue if its applicable
+	
+	Value* currentStackSlot = vm.stackpointer - 1;
+	Value* stackStartForFrame = (vm.frames[vm.frameCount-1]).stackStart;
+	while (currentStackSlot >= stackStartForFrame){
+
+		closeObjUpvalue(currentStackSlot - stackStartForFrame);
+		currentStackSlot--;
+	}
+}
+
 //Error handling functions
 void runtimeError(char* format, ...){
 
@@ -356,10 +431,10 @@ void runtimeError(char* format, ...){
 	
 	for (int frameIndex=vm.frameCount; frameIndex>0; frameIndex--){
 		CallFrame* frame = &vm.frames[frameIndex - 1];
-		int index = frame->ip - 1 - frame->function->chunk->code;
-		int line = frame->function->chunk->lines[index];
-		if (frame->function->name == NULL) fprintf(stderr, "line [%d] : in < script >\n", line);
-		else fprintf(stderr, "line [%d] : in `%s()`\n", line, frame->function->name->string);
+		int index = frame->ip - 1 - frame->closure->function->chunk->code;
+		int line = frame->closure->function->chunk->lines[index];
+		if (frame->closure->function->name == NULL) fprintf(stderr, "line [%d] : in < script >\n", line);
+		else fprintf(stderr, "line [%d] : in `%s()`\n", line, frame->closure->function->name->string);
 	}
 
 	resetStack();
@@ -373,8 +448,8 @@ bool callNoErrors(int nargs, Value funcVal){
 			switch (AS_OBJ(funcVal)->objectType){
 				case OBJECT_NATIVE_FUNCTION:
 					arity = (AS_NATIVE_FUNCTION_OBJ(funcVal))->arity;
-				case OBJECT_FUNCTION:{
-					if (AS_OBJ(funcVal)->objectType == OBJECT_FUNCTION) arity = (AS_FUNCTION_OBJ(funcVal))->arity;
+				case OBJECT_CLOSURE:{
+					arity = (AS_CLOSURE_OBJ(funcVal))->function->arity;
 					if (nargs != arity){
 						runtimeError("Expected %d arguments, got %d", arity, nargs);
 						return false;
@@ -410,6 +485,12 @@ Value peek(int depth){
 
 void resetStack(){
 	vm.stackpointer = vm.stack;
+}
+
+void resetOpenObjUpvalues(){
+	for (int i=0; i < STACK_MAX_SIZE; i++){
+		vm.openObjUpvalues[i] = NULL;
+	}
 }
 
 // Functions for native functions in Lox

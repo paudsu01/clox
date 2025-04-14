@@ -13,7 +13,7 @@ typedef enum{
 } InterpreterResult;
 
 typedef struct{
-	ObjectFunction* function;
+	ObjectClosure* closure;
 	uint8_t* ip;
 	Value* stackStart;
 } CallFrame;
@@ -24,6 +24,7 @@ typedef struct{
 
 	Value* stackpointer;
 	Value stack[STACK_MAX_SIZE];
+	ObjectUpvalue* openObjUpvalues[STACK_MAX_SIZE];
 
 	Object* objects;
 	Table strings;
@@ -36,7 +37,7 @@ void freeVM();
 
 // Call frame function prototypes
 void initCallFrame(CallFrame*);
-void addFunctionToCurrentCallFrame(CallFrame*, ObjectFunction*);
+void addClosureToCurrentCallFrame(CallFrame*, ObjectClosure*);
 
 InterpreterResult interpret(const char* source);
 InterpreterResult runVM();
@@ -44,6 +45,8 @@ InterpreterResult runVM();
 bool trueOrFalse(Value);
 Object* concatenate();
 void mutate_vm_ip(uint8_t, uint16_t);
+void closeObjUpvalue(int);
+void closeObjUpvalues();
 
 void declareNativeFunctions();
 void declareNativeFunction(char[], int, NativeFunction);
@@ -58,5 +61,6 @@ void push(Value);
 Value pop();
 Value peek(int);
 void resetStack();
+void resetOpenObjUpvalues();
 
 #endif
