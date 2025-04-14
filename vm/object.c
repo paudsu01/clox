@@ -87,6 +87,7 @@ ObjectUpvalue* makeNewUpvalueObject(int index){
 	// Reuse objUpvalue if an open upvalue already exists
 	if ((objUpvalue = vm.openObjUpvalues[index]) == NULL) {
 		objUpvalue = (ObjectUpvalue *) allocateObject(sizeof(ObjectUpvalue), OBJECT_UPVALUE);
+		vm.openObjUpvalues[index] = objUpvalue;
 	}
 
 	return objUpvalue;

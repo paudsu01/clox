@@ -113,6 +113,11 @@ InterpreterResult runVM(){
 				pop();
 				break;
 
+			case OP_POP_UPVALUE:
+				closeObjUpvalue((vm.stackpointer - 1) - vm.stack);
+				pop();
+				break;
+
 			case OP_CONSTANT:
 				value = READ_CONSTANT();
 				push(value);
@@ -382,6 +387,17 @@ void mutate_vm_ip(uint8_t opcode, uint16_t offset){
 			break;
 	}
 
+}
+
+void closeObjUpvalue(int index){
+	if (vm.openObjUpvalues[index] != NULL){
+		ObjectUpvalue* upvalue = vm.openObjUpvalues[index];
+
+		upvalue->closedValue = *(upvalue->value);
+		upvalue->value = &upvalue->closedValue;
+
+		vm.openObjUpvalues[index] = NULL;
+	}
 }
 
 //Error handling functions
