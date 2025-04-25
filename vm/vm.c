@@ -12,14 +12,15 @@
 
 VM vm;
 
-void initVM(){
+void initVM(bool end){
 	vm.objects = NULL;
 	vm.frameCount = 0;
 	initTable(&vm.strings);
 	initTable(&vm.globals);
 	resetStack();
 	resetOpenObjUpvalues();
-	declareNativeFunctions();
+
+	if (!end) declareNativeFunctions();
 }
 
 void initCallFrame(CallFrame* frame){
@@ -345,7 +346,7 @@ void freeVM(){
 	freeObjects();
 	freeTable(&vm.strings);
 	freeTable(&vm.globals);
-	initVM();
+	initVM(true);
 }
 
 // Helper functions

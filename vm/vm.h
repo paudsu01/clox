@@ -32,7 +32,7 @@ typedef struct{
 } VM;
 
 // function prototypes
-void initVM();
+void initVM(bool end);
 void freeVM();
 
 // Call frame function prototypes

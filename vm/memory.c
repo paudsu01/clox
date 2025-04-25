@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "memory.h"
 #include "vm.h"
@@ -31,6 +32,10 @@ void freeObjects(){
 }
 
 void freeObject(Object* object){
+	#ifdef DEBUG_LOG_GC
+	printf("free object of type: %d\n", object->objectType);
+	#endif
+
 	switch(object->objectType){
 		case OBJECT_STRING:
 			{
@@ -70,9 +75,6 @@ void freeObject(Object* object){
 			break;
 	}
 
-	#ifdef DEBUG_LOG_GC
-	printf("free object of type: %d\n", object->objectType);
-	#endif
 }
 
 

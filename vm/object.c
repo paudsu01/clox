@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "object.h"
 #include "memory.h"
 #include "string.h"

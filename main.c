@@ -12,7 +12,7 @@ static void runFile(char*);
 static char* readFile(char*);
 
 int main(int nargs, char * args[]){
-	initVM();
+	initVM(false);
 
 	if (nargs == 1){
 		// REPL
