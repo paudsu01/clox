@@ -11,6 +11,12 @@ Object * allocateObject(int size, ObjectType type){
 	object->objectType = type;
 
 	object->next = vm.objects;
+	object->isMarked = false;
+
+	#ifdef DEBUG_LOG_GC
+	printf("Allocate object of type %d\n", type);
+	#endif
+
 	vm.objects = object;
 
 	return object;

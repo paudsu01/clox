@@ -6,12 +6,17 @@
 
 void * reallocate(void* pointer, int oldsize, int newsize){
 
+	#ifdef EXCESSIVE_GC_MODE
+	runGarbageCollector();
+	#endif
+
 	if (newsize == 0){
 		free(pointer);
 		return NULL;
 	}
 	pointer = realloc(pointer, newsize);
 	if (pointer == NULL) exit(1);
+
 	return pointer;
 }
 
@@ -64,4 +69,20 @@ void freeObject(Object* object){
 		default:
 			break;
 	}
+
+	#ifdef DEBUG_LOG_GC
+	printf("free object of type: %d\n", object->objectType);
+	#endif
+}
+
+
+// Garbage collector functions
+void runGarbageCollector(){
+	#ifdef DEBUG_LOG_GC
+	printf("-- GC run\n");
+	#endif
+
+	#ifdef DEBUG_LOG_GC
+	printf("GC end --\n");
+	#endif
 }

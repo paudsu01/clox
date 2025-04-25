@@ -18,4 +18,7 @@ void* reallocate(void*, int, int);
 void freeObjects();
 void freeObject(Object* object);
 
+// Garbage collector functions
+void runGarbageCollector();
+
 #endif
