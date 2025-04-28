@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "memory.h"
+#include "../compiler/compiler.h"
 #include "vm.h"
 
 extern VM vm;
@@ -98,7 +99,7 @@ void runGarbageCollector(){
 void markObjects(){
 
 	markRoots();
-	//TODO
+	markCompilerRoots();
 }
 
 void markRoots(){
@@ -111,6 +112,17 @@ void markRoots(){
 	//call frame mark
 	markCallFrame();
 }
+
+void markCompilerRoots(){
+	extern Compiler* currentCompiler;
+	
+	Compiler* current = currentCompiler;
+	while (current != NULL){
+		markObject((Object *) current->function);
+		current = current->parentCompiler;
+	}
+}
+
 
 void markValue(Value value){
 	if (IS_OBJ(value)) markObject(AS_OBJ(value));

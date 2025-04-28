@@ -24,6 +24,7 @@ void freeObject(Object* object);
 void runGarbageCollector();
 void markObjects();
 void markRoots();
+void markCompilerRoots();
 
 void markValue(Value value);
 void markObject(Object* object);
