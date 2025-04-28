@@ -34,7 +34,9 @@ void freeObjects(){
 
 void freeObject(Object* object){
 	#ifdef DEBUG_LOG_GC
-	printf("free object of type: %d\n", object->objectType);
+	printf("free object of type: %d\t", object->objectType);
+	printValue(OBJECT(object));
+	printf("\n");
 	#endif
 
 	switch(object->objectType){
@@ -116,10 +118,13 @@ void markValue(Value value){
 
 void markObject(Object* object){
 
+	if (object == NULL) return;
 	if (object->isMarked) return;
 
 	#ifdef DEBUG_LOG_GC
-	printf("mark %d\n", object->objectType);
+	printf("mark type: %d\t", object->objectType);
+	printValue(OBJECT(object));
+	printf("\n");
 	#endif
 
 	object->isMarked = true;
