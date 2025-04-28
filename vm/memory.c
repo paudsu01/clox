@@ -107,7 +107,7 @@ void markRoots(){
 	markStack();
 
 	//call frame mark
-	//TODO
+	markCallFrame();
 }
 
 void markValue(Value value){
@@ -137,5 +137,12 @@ void markHashTable(Table* table){
 void markStack(){
 	for (Value* i=vm.stack; i < vm.stackpointer; i++){
 		markValue(*i);
+	}
+}
+
+void markCallFrame(){
+	for (int i=0; i < vm.frameCount; i++){
+		CallFrame frame = vm.frames[i];
+		markObject((Object*) frame.closure);
 	}
 }

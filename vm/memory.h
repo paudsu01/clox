@@ -29,5 +29,6 @@ void markValue(Value value);
 void markObject(Object* object);
 void markHashTable(Table* table);
 void markStack();
+void markCallFrame();
 
 #endif
