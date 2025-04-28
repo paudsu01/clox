@@ -4,11 +4,12 @@
 #include "memory.h"
 #include "vm.h"
 
+extern VM vm;
 
 void * reallocate(void* pointer, int oldsize, int newsize){
 
 	#ifdef EXCESSIVE_GC_MODE
-	runGarbageCollector();
+	if (newsize > oldsize) runGarbageCollector();
 	#endif
 
 	if (newsize == 0){
@@ -81,10 +82,60 @@ void freeObject(Object* object){
 // Garbage collector functions
 void runGarbageCollector(){
 	#ifdef DEBUG_LOG_GC
-	printf("-- GC run\n");
+	printf("-- GC run --\n");
 	#endif
+	
+	//TODO
+	markObjects();
 
 	#ifdef DEBUG_LOG_GC
-	printf("GC end --\n");
+	printf("-- GC end --\n");
 	#endif
+}
+
+void markObjects(){
+
+	markRoots();
+	//TODO
+}
+
+void markRoots(){
+	// mark the global variables first
+	markHashTable(&vm.globals);
+
+	// mark the stack values
+	markStack();
+
+	//call frame mark
+	//TODO
+}
+
+void markValue(Value value){
+	if (IS_OBJ(value)) markObject(AS_OBJ(value));
+}
+
+void markObject(Object* object){
+
+	if (object->isMarked) return;
+
+	#ifdef DEBUG_LOG_GC
+	printf("mark %d\n", object->objectType);
+	#endif
+
+	object->isMarked = true;
+}
+
+void markHashTable(Table* table){
+	for (int i=0; i < table->capacity; i++){
+		if ((table->entries[i].key != NULL) || (table->entries[i].value.type != TYPE_NIL)){
+			markObject((Object *) table->entries[i].key);
+			markValue(table->entries[i].value);
+		}
+	}
+}
+
+void markStack(){
+	for (Value* i=vm.stack; i < vm.stackpointer; i++){
+		markValue(*i);
+	}
 }

@@ -3,6 +3,8 @@
 
 #include "../common.h"
 #include "object.h"
+#include "value.h"
+#include "table.h"
 
 #define GROW_CAPACITY(capacity) \
 	((capacity < 8) ? 8: capacity*2)
@@ -20,5 +22,12 @@ void freeObject(Object* object);
 
 // Garbage collector functions
 void runGarbageCollector();
+void markObjects();
+void markRoots();
+
+void markValue(Value value);
+void markObject(Object* object);
+void markHashTable(Table* table);
+void markStack();
 
 #endif
