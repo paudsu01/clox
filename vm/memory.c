@@ -34,6 +34,7 @@ void freeObjects(){
 }
 
 void freeObject(Object* object){
+	
 	#ifdef DEBUG_LOG_GC
 	printf("free object of type: %d\t", object->objectType);
 	printValue(OBJECT(object));
@@ -199,7 +200,8 @@ void addChildObjectsToGCQueue(Object* object){
 
 				ValueArray* objFuncConstArray = &(objFunc->chunk->constants);
 				for (int i=0; i < objFuncConstArray->count; i++){
-					addObject(AS_OBJ(objFuncConstArray->values[i]));
+					Value value = objFuncConstArray->values[i];
+					markValue(value);
 				}
 			}
 			break;
@@ -241,6 +243,7 @@ void sweepObjects(){
 				vm.objects = current->next;
 				freeObject(current);
 				current = vm.objects;
+
 			} else{
 				current = current->next;
 				freeObject(previous->next);
