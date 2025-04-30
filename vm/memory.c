@@ -88,9 +88,15 @@ void runGarbageCollector(){
 
 	#ifdef DEBUG_LOG_GC
 	printf("-- GC run --\n");
+	printf("Marking objects--\n");
 	#endif
-	
+
 	markObjects();
+
+	#ifdef DEBUG_LOG_GC
+	printf("Sweeping unreachable objects--\n");
+	#endif
+	sweepObjects();
 
 	resetGC();
 	#ifdef DEBUG_LOG_GC
@@ -218,4 +224,28 @@ void addChildObjectsToGCQueue(Object* object){
 			break;
 	}
 
+}
+
+void sweepObjects(){
+
+	Object* previous = NULL;
+	Object* current = vm.objects;
+	while (current != NULL){
+
+		if (current->isMarked){
+			current->isMarked = false;
+			previous = current;	
+			current = current->next;
+		} else {
+			if (previous == NULL) {
+				vm.objects = current->next;
+				freeObject(current);
+				current = vm.objects;
+			} else{
+				current = current->next;
+				freeObject(previous->next);
+			        previous->next = current;
+			}
+		}
+	}
 }
