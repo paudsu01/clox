@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "table.h"
+#include "gc.h"
 
 #define STACK_MAX_SIZE 256
 
@@ -29,6 +30,8 @@ typedef struct{
 	Object* objects;
 	Table strings;
 	Table globals;
+
+	GC gc;
 } VM;
 
 // function prototypes

@@ -84,6 +84,8 @@ void freeObject(Object* object){
 
 // Garbage collector functions
 void runGarbageCollector(){
+	initGC();
+
 	#ifdef DEBUG_LOG_GC
 	printf("-- GC run --\n");
 	#endif
@@ -91,6 +93,7 @@ void runGarbageCollector(){
 	//TODO
 	markObjects();
 
+	resetGC();
 	#ifdef DEBUG_LOG_GC
 	printf("-- GC end --\n");
 	#endif

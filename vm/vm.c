@@ -19,6 +19,7 @@ void initVM(bool end){
 	initTable(&vm.globals);
 	resetStack();
 	resetOpenObjUpvalues();
+	vm.gc = (GC) {.count=0, .capacity=0, .objectsQueue=NULL};
 
 	if (!end) declareNativeFunctions();
 }
