@@ -90,7 +90,6 @@ void runGarbageCollector(){
 	printf("-- GC run --\n");
 	#endif
 	
-	//TODO
 	markObjects();
 
 	resetGC();
@@ -101,8 +100,17 @@ void runGarbageCollector(){
 
 void markObjects(){
 
+	// The idea is that we do a breadth first search
+	// First, we mark the roots and add their child objects to the queue
 	markRoots();
 	markCompilerRoots();
+	// Then we remove an Object from the idea, mark it, add their child objects to the queue and keep repeating until there are no more objects in the queue
+	int index=0;
+	while (index < vm.gc.count){
+		Object* obj = vm.gc.objectsQueue[index];	
+		markObject(obj);
+		index++;
+	}
 }
 
 void markRoots(){
