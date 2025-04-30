@@ -143,6 +143,8 @@ void markObject(Object* object){
 	#endif
 
 	object->isMarked = true;
+
+	addChildObjectsToGCQueue(object);
 }
 
 void markHashTable(Table* table){
@@ -165,4 +167,47 @@ void markCallFrame(){
 		CallFrame frame = vm.frames[i];
 		markObject((Object*) frame.closure);
 	}
+}
+
+void addChildObjectsToGCQueue(Object* object){
+	
+	switch(object->objectType){
+		case OBJECT_NATIVE_FUNCTION:
+			{
+				ObjectNativeFunction* objNative = (ObjectNativeFunction*) object;
+				addObject((Object*) objNative->name);
+			}
+			break;
+		case OBJECT_FUNCTION:
+			{
+				ObjectFunction* objFunc = (ObjectFunction*) object;
+				addObject((Object*) objFunc->name);
+
+				ValueArray* objFuncConstArray = &(objFunc->chunk->constants);
+				for (int i=0; i < objFuncConstArray->count; i++){
+					addObject(AS_OBJ(objFuncConstArray->values[i]));
+				}
+			}
+			break;
+		case OBJECT_CLOSURE:
+			{
+				ObjectClosure* objClosure = (ObjectClosure*) object;
+				addObject((Object*) objClosure->function);
+				for (int i=0; i< objClosure->upvaluesCount; i++){
+					addObject((Object*) objClosure->objUpvalues[i]);
+				}
+			}
+			break;
+		case OBJECT_UPVALUE:
+			{
+				ObjectUpvalue* objUpvalue = (ObjectUpvalue*) object;
+				Value value = *objUpvalue->value;
+				addObject(AS_OBJ(value));
+			}
+			break;
+		case OBJECT_STRING:
+			// Nothing to do
+			break;
+	}
+
 }

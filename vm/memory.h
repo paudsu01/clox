@@ -32,4 +32,6 @@ void markHashTable(Table* table);
 void markStack();
 void markCallFrame();
 
+void addChildObjectsToGCQueue(Object*);
+
 #endif
