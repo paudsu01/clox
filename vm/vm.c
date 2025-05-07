@@ -20,6 +20,8 @@ void initVM(bool end){
 	resetStack();
 	resetOpenObjUpvalues();
 	vm.gc = (GC) {.count=0, .capacity=0, .objectsQueue=NULL};
+	vm.bytesAllocated = 0;
+	vm.nextGCRun = INITIAL_GC_TRIGGER_VALUE;
 
 	if (!end) declareNativeFunctions();
 }

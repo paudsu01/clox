@@ -31,6 +31,9 @@ typedef struct{
 	Table strings;
 	Table globals;
 
+	int bytesAllocated;
+	int nextGCRun;
+
 	GC gc;
 } VM;
 
