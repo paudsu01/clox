@@ -22,20 +22,4 @@ void freeObject(Object* object);
 
 // Garbage collector functions
 void runGarbageCollector();
-
-void markObjects();
-void markRoots();
-void markCompilerRoots();
-
-void sweepObjects();
-
-void markValue(Value value);
-void markObject(Object* object);
-void markHashTable(Table* table);
-void markStack();
-void markCallFrame();
-
-void addChildObjectsToGCQueue(Object*);
-void freeStringsFromVMHashTable();
-
 #endif

@@ -344,6 +344,11 @@ InterpreterResult runVM(){
 }
 
 void freeVM(){
+
+	#ifdef RUN_GC_AT_END
+	runGarbageCollector();
+	#endif
+
 	freeObjects();
 	freeTable(&vm.strings);
 	freeTable(&vm.globals);
