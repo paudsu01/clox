@@ -93,6 +93,7 @@ void runGarbageCollector(){
 	#endif
 
 	markObjects();
+	freeStringsFromVMHashTable();
 
 	#ifdef DEBUG_LOG_GC
 	printf("Sweeping unreachable objects--\n");
@@ -226,6 +227,15 @@ void addChildObjectsToGCQueue(Object* object){
 			break;
 	}
 
+}
+
+void freeStringsFromVMHashTable(){
+	
+	for (int i=0; i< vm.strings.capacity; i++){
+		Entry entry = vm.strings.entries[i];
+		if (entry.key != NULL && !(((Object*) entry.key)->isMarked))
+			tableDelete(&vm.strings, entry.key);
+	}
 }
 
 void sweepObjects(){

@@ -36,5 +36,6 @@ void markStack();
 void markCallFrame();
 
 void addChildObjectsToGCQueue(Object*);
+void freeStringsFromVMHashTable();
 
 #endif
