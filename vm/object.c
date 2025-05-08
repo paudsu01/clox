@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "object.h"
 #include "memory.h"
 #include "string.h"
@@ -11,6 +13,12 @@ Object * allocateObject(int size, ObjectType type){
 	object->objectType = type;
 
 	object->next = vm.objects;
+	object->isMarked = false;
+
+	#ifdef DEBUG_LOG_GC
+	printf("Allocate object of type %d\n", type);
+	#endif
+
 	vm.objects = object;
 
 	return object;
@@ -38,7 +46,6 @@ ObjectString* allocateStringObject(char* string, int length){
 
 		// Add to hash set
 		tableAdd(&vm.strings, objString, NIL);
-
 		return objString;
 	}
 	else {
@@ -53,17 +60,33 @@ ObjectFunction* makeNewFunctionObject(){
 	objFunction->name = NULL;
 	objFunction->arity = 0;
 	objFunction->upvaluesCount = 0;
+
+	// Push beforehand in the off chance the gc runs and we lose the function object
+	push(OBJECT(objFunction));
 	objFunction->chunk = (Chunk*) reallocate(NULL,0,sizeof(Chunk));
+	// pop afterwards
+	pop();
+
 	initChunk(objFunction->chunk);
 
 	return objFunction;
 }
 
 ObjectClosure* makeNewFunctionClosureObject(ObjectFunction* function){
+	// Push beforehand in the off chance the gc runs and we lose the function object
+	push(OBJECT(function));
 	ObjectClosure* objFuncClosure = (ObjectClosure *) allocateObject(sizeof(ObjectClosure), OBJECT_CLOSURE);
+
+
 	objFuncClosure->function = function;
 	objFuncClosure->upvaluesCount = function->upvaluesCount;
+
+	// Push beforehand in the off chance the gc runs and we lose the function closure object
+	push(OBJECT(objFuncClosure));
 	objFuncClosure->objUpvalues = reallocate(NULL, 0, (sizeof(ObjectUpvalue*) * function->upvaluesCount));
+	// pop afterwards
+	pop();
+	pop();
 	
 	for (int i = 0; i < function->upvaluesCount; i++){
 		objFuncClosure->objUpvalues[i] = NULL;
@@ -74,7 +97,12 @@ ObjectClosure* makeNewFunctionClosureObject(ObjectFunction* function){
 
 ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString* name, int arity, NativeFunction function){
 	
+	// Push beforehand in the off chance the gc runs and we lose the LoxString object
+	push(OBJECT(name));
 	ObjectNativeFunction* objFunction = (ObjectNativeFunction *) allocateObject(sizeof(ObjectNativeFunction), OBJECT_NATIVE_FUNCTION);
+	// pop afterwards
+	pop();
+
 	objFunction->name = name;
 	objFunction->arity = arity;
 	objFunction->nativeFunction = function;

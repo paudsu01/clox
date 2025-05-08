@@ -2,6 +2,7 @@
 #include "table.h"
 #include "memory.h"
 #include "string.h"
+#include "vm.h"
 
 void initTable(Table* table){
 	table->count=0;
@@ -19,7 +20,15 @@ void tableAdd(Table* table, ObjectString* key, Value value){
 	// allocate and resize if necessary
 	if (table->count + 1 > table->capacity * MAX_TABLE_LOAD) {
 		int capacity = GROW_CAPACITY(table->capacity);
+
+		// Push the key and the value onto the heap just in case the GC runs while the adjustHashTable function is called so that we don't lose these objects
+		push(OBJECT(key));
+		push(value);
 		adjustHashTable(table, capacity);
+
+		// pop afterwards
+		pop();
+		pop();
 	}
 
 	// find entry to put value in

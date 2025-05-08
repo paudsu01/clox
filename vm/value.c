@@ -3,6 +3,7 @@
 #include "value.h"
 #include "memory.h"
 #include "string.h"
+#include "vm.h"
 
 
 void initValueArray(ValueArray* array){
@@ -12,11 +13,18 @@ void initValueArray(ValueArray* array){
 }
 
 void appendValue(ValueArray* array, Value value){
+
+	// push in the off chance the gc gets triggered and the LoxValue is an object
+	push(value);
+
 	if (array->count == array->capacity){
 		int old_capacity = array->capacity;
 		array->capacity = GROW_CAPACITY(old_capacity);
 		array->values = GROW_ARRAY(Value, array->values, old_capacity, array->capacity);
 	}
+
+	// pop afterwards
+	pop();
 
 	*((array->values) + array->count) = value;
 	(array->count)++;

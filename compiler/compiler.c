@@ -689,6 +689,7 @@ static void emitConstant(Value value){
 
 static uint8_t addConstantAndCheckLimit(Value value){
 	int index = addConstant(currentChunk(), value);
+
 	if (index > UINT8_MAX){
 		// error
 		errorAtPreviousToken("Too many values in one chunk");

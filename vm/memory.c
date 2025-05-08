@@ -1,10 +1,26 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "memory.h"
 #include "vm.h"
 
+extern VM vm;
 
 void * reallocate(void* pointer, int oldsize, int newsize){
+
+	vm.bytesAllocated += (newsize - oldsize);
+
+	// this function is indirectly recursive since if the runGarbageCollector() is triggered, it can call the reallocate() function again while object from memory is being freed
+	// In that case, we don't want to run the garbageCollector again which is why the newsize > oldsize requirement is also there
+	// The vm.bytesAllocated >= vm.nextGCRun might not be enough because if a lot of bytes were told to be allocated, a small # of bytes being freed might still make the bytesAllocated >= nextGCRun which in turn triggers the runGarbageCollector again
+	if (newsize > oldsize && vm.bytesAllocated >= vm.nextGCRun){
+		runGarbageCollector();
+	} else{
+		#ifdef EXCESSIVE_GC_MODE
+		if (newsize > oldsize) runGarbageCollector();
+		#endif
+	}
+
 
 	if (newsize == 0){
 		free(pointer);
@@ -12,6 +28,7 @@ void * reallocate(void* pointer, int oldsize, int newsize){
 	}
 	pointer = realloc(pointer, newsize);
 	if (pointer == NULL) exit(1);
+
 	return pointer;
 }
 
@@ -26,6 +43,13 @@ void freeObjects(){
 }
 
 void freeObject(Object* object){
+	
+	#ifdef DEBUG_LOG_GC
+	printf("free object of type: %d\t", object->objectType);
+	printValue(OBJECT(object));
+	printf("\n");
+	#endif
+
 	switch(object->objectType){
 		case OBJECT_STRING:
 			{
@@ -64,4 +88,38 @@ void freeObject(Object* object){
 		default:
 			break;
 	}
+
+}
+
+
+// Garbage collector functions
+void runGarbageCollector(){
+	initGC();
+
+	int bytesBefore = vm.bytesAllocated;
+
+	#ifdef DEBUG_LOG_GC
+	printf("--- GC run --\n");
+	printf("- Marking objects -\n");
+	#endif
+
+	markObjects();
+	freeStringsFromVMHashTable();
+
+	#ifdef DEBUG_LOG_GC
+	printf("- Sweeping unreachable objects -\n");
+	#endif
+	sweepObjects();
+
+
+	// Set the next GC run
+	 vm.nextGCRun = (vm.bytesAllocated * 2 <= INITIAL_GC_TRIGGER_VALUE) ? INITIAL_GC_TRIGGER_VALUE : 2 * vm.bytesAllocated;
+	
+	resetGC();
+
+	#ifdef DEBUG_LOG_GC
+	int bytesAfter = vm.bytesAllocated;
+	printf("- Bytes freed from memory: %d -\n", bytesBefore - bytesAfter);
+	printf("--- GC end ---\n");
+	#endif
 }

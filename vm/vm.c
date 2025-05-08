@@ -12,14 +12,18 @@
 
 VM vm;
 
-void initVM(){
+void initVM(bool end){
 	vm.objects = NULL;
 	vm.frameCount = 0;
 	initTable(&vm.strings);
 	initTable(&vm.globals);
 	resetStack();
 	resetOpenObjUpvalues();
-	declareNativeFunctions();
+	vm.gc = (GC) {.count=0, .capacity=0, .objectsQueue=NULL};
+	vm.bytesAllocated = 0;
+	vm.nextGCRun = INITIAL_GC_TRIGGER_VALUE;
+
+	if (!end) declareNativeFunctions();
 }
 
 void initCallFrame(CallFrame* frame){
@@ -342,10 +346,15 @@ InterpreterResult runVM(){
 }
 
 void freeVM(){
+
+	#ifdef RUN_GC_AT_END
+	runGarbageCollector();
+	#endif
+
 	freeObjects();
 	freeTable(&vm.strings);
 	freeTable(&vm.globals);
-	initVM();
+	initVM(true);
 }
 
 // Helper functions
@@ -357,8 +366,9 @@ bool trueOrFalse(Value val){
 }
 
 Object* concatenate(){
-	ObjectString* b = AS_STRING_OBJ(pop());
-	ObjectString* a = AS_STRING_OBJ(pop());
+	// Peek just in case the gc runs and we lose these two string objects
+	ObjectString* b = AS_STRING_OBJ(peek(0));
+	ObjectString* a = AS_STRING_OBJ(peek(1));
 
 	int length = b->length+a->length;
 	char* string = (char*) reallocate(NULL, 0, length);
@@ -368,6 +378,11 @@ Object* concatenate(){
 	ObjectString* ptr = makeStringObject(string, length);
 
 	reallocate(string, length, 0);
+
+	// Pop afterwards because we no longer need them
+	pop();
+	pop();
+
 	return (Object*) ptr;
 }
 

@@ -3,6 +3,8 @@
 
 #include "../common.h"
 #include "object.h"
+#include "value.h"
+#include "table.h"
 
 #define GROW_CAPACITY(capacity) \
 	((capacity < 8) ? 8: capacity*2)
@@ -18,4 +20,6 @@ void* reallocate(void*, int, int);
 void freeObjects();
 void freeObject(Object* object);
 
+// Garbage collector functions
+void runGarbageCollector();
 #endif
