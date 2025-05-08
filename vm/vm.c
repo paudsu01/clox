@@ -366,8 +366,9 @@ bool trueOrFalse(Value val){
 }
 
 Object* concatenate(){
-	ObjectString* b = AS_STRING_OBJ(pop());
-	ObjectString* a = AS_STRING_OBJ(pop());
+	// Peek just in case the gc runs and we lose these two string objects
+	ObjectString* b = AS_STRING_OBJ(peek(0));
+	ObjectString* a = AS_STRING_OBJ(peek(1));
 
 	int length = b->length+a->length;
 	char* string = (char*) reallocate(NULL, 0, length);
@@ -377,6 +378,11 @@ Object* concatenate(){
 	ObjectString* ptr = makeStringObject(string, length);
 
 	reallocate(string, length, 0);
+
+	// Pop afterwards because we no longer need them
+	pop();
+	pop();
+
 	return (Object*) ptr;
 }
 
