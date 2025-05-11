@@ -321,6 +321,14 @@ InterpreterResult runVM(){
 								frame->stackStart = vm.stackpointer - nargs - 1;
 							}
 								break;
+							case OBJECT_CLASS:
+							{
+								ObjectInstance* instance = makeInstanceObject(AS_CLASS_OBJ(funcVal));
+								// pop ObjectClass from the stack
+								pop();
+								push(OBJECT(instance));
+							}
+								break;
 							//Unreachable since every ObjectFunction object is wrapped around ObjectClosure
 							case OBJECT_FUNCTION:
 								break;
@@ -469,8 +477,10 @@ bool callNoErrors(int nargs, Value funcVal){
 			switch (AS_OBJ(funcVal)->objectType){
 				case OBJECT_NATIVE_FUNCTION:
 					arity = (AS_NATIVE_FUNCTION_OBJ(funcVal))->arity;
-				case OBJECT_CLOSURE:{
-					arity = (AS_CLOSURE_OBJ(funcVal))->function->arity;
+				case OBJECT_CLOSURE:
+					if (IS_CLOSURE(funcVal)) arity = (AS_CLOSURE_OBJ(funcVal))->function->arity;
+				case OBJECT_CLASS:{
+					if (IS_CLASS(funcVal)) arity = 0;
 					if (nargs != arity){
 						runtimeError("Expected %d arguments, got %d", arity, nargs);
 						return false;
@@ -479,7 +489,7 @@ bool callNoErrors(int nargs, Value funcVal){
 						runtimeError("Call stack overflow !!");
 						return false;
 					}}
-				return true;
+					return true;
 				default:
 					break;
 			}}
