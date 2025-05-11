@@ -91,6 +91,14 @@ void freeObject(Object* object){
 				reallocate(objectClass, sizeof(*objectClass), 0);
 			}
 			break;
+		case OBJECT_INSTANCE:
+			{
+				ObjectInstance* objectInstance = (ObjectInstance*) object;
+				freeTable(objectInstance->fields);
+				reallocate(objectInstance->fields, sizeof(*objectInstance->fields), 0);
+				reallocate(objectInstance, sizeof(*objectInstance), 0);
+			}
+			break;
 		default:
 			break;
 	}

@@ -81,6 +81,14 @@ void printObject(Object* object){
 			printf("< Class: %s >", name->string);
 			}
 			break;
+		case OBJECT_INSTANCE:
+			{
+				ObjectClass* Class = ((ObjectInstance*) object)->Class;
+				printf("< instance of ");
+				printObject((Object*) Class);
+				printf(" >");
+			}
+			break;
 		default:
 			break;
 	}
@@ -126,6 +134,6 @@ bool checkIfObjectsEqual(Object* obj1, Object* obj2){
 				return objFunc1->name == objFunc2->name;
 			}
 		default:
-			return false;
+			return obj1 == obj2;
 	}
 }

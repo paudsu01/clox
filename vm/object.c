@@ -127,6 +127,17 @@ ObjectClass* makeClassObject(ObjectString* name){
 	return class;
 }
 
+ObjectInstance* makeInstanceObject(ObjectClass* Class){
+	ObjectInstance* instance =(ObjectInstance*) allocateObject(sizeof(ObjectInstance), OBJECT_INSTANCE);
+	instance->Class = Class;
+
+	Table* fields = reallocate(NULL, 0, sizeof(Table));
+	initTable(fields);
+	instance->fields = fields;
+
+	return instance;
+}
+
 uint32_t jenkinsHash(const char* key, int length){
 	// Jenkins hash function
 	// Reference: https://en.wikipedia.org/wiki/Jenkins_hash_function

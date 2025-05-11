@@ -18,6 +18,7 @@ void resetGC(){
 }
 
 void addObject(Object* object){
+	if (object == NULL) return;
 	if (vm.gc.count == vm.gc.capacity){
 		vm.gc.capacity = GROW_CAPACITY(vm.gc.capacity);
 		vm.gc.objectsQueue = (Object**) realloc(vm.gc.objectsQueue, sizeof(Object*) *  vm.gc.capacity);
@@ -147,6 +148,18 @@ void addChildObjectsToGCQueue(Object* object){
 			{
 				ObjectClass* objClass = (ObjectClass*) object;
 				addObject((Object*) objClass->name);
+			}
+			break;
+		case OBJECT_INSTANCE:
+			{
+				ObjectInstance* objInstance = (ObjectInstance*) object;
+				addObject((Object*) objInstance->Class);
+				for (int i=0; i< objInstance->fields->capacity; i++){
+					Entry entry = objInstance->fields->entries[i];
+					addObject((Object*) entry.key);
+					addObject(AS_OBJ(entry.value));
+				}
+				
 			}
 			break;
 		case OBJECT_STRING:

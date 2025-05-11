@@ -63,6 +63,7 @@ bool checkIfObjectsEqual(Object*,Object*);
 #define AS_CLOSURE_OBJ(value) (ObjectClosure*) value.as.object
 #define AS_NATIVE_FUNCTION_OBJ(value) (ObjectNativeFunction*) value.as.object
 #define AS_CLASS_OBJ(value) (ObjectClass*) value.as.object
+#define AS_INSTANCE_OBJ(value) (ObjectInstance*) value.as.object
 
 #define IS_BOOL(value) value.type == TYPE_BOOL
 #define IS_NIL(value) value.type == TYPE_NIL
@@ -72,5 +73,6 @@ bool checkIfObjectsEqual(Object*,Object*);
 #define IS_FUNCTION(value) IS_OBJ(value) && (AS_OBJ(value)->objectType == OBJECT_FUNCTION)
 #define IS_CLOSURE(value) IS_OBJ(value) && (AS_OBJ(value)->objectType == OBJECT_CLOSURE)
 #define IS_CLASS(value) IS_OBJ(value) && (AS_OBJ(value)->objectType == OBJECT_CLASS)
+#define IS_INSTANCE(value) IS_OBJ(value) && (AS_OBJ(value)->objectType == OBJECT_INSTANCE)
 
 #endif
