@@ -52,6 +52,7 @@ static void synchronize();
 static void parseDeclaration();
 static void parseVarDeclaration();
 static void parseFuncDeclaration();
+static void parseClassDeclaration();
 static int parseParameters();
 static void parseStatement();
 static void parsePrintStatement();
@@ -166,10 +167,11 @@ ObjectFunction* compile(const char* source){
 
 // parsing declaration/statements
 
-// declaration -> varDecl | statement | funcDecl ;
+// declaration -> classDecl | varDecl | statement | funcDecl ;
 static void parseDeclaration(){
 	if (matchToken(TOKEN_VAR)) parseVarDeclaration();
 	else if (matchToken(TOKEN_FUN)) parseFuncDeclaration();
+	else if (matchToken(TOKEN_CLASS)) parseClassDeclaration();
 	else parseStatement();
 
 	if (parser.panicMode){
@@ -246,6 +248,27 @@ static void parseFuncDeclaration(){
 	}
 	
 	// emit byte to add it to global hash table if it is a global variable
+	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
+}
+
+static void parseClassDeclaration(){
+	consumeToken(TOKEN_IDENTIFIER, "Expect class name");
+	uint8_t index;
+
+	// Add name LoxString object to the constant table no matter what( even if it is in local context )
+	index = parseGlobalVariable();
+	if (currentCompiler->currentScopeDepth != 0){
+		// Local variable handling
+		handleLocalVariable();
+		markInitialized();
+	}
+
+	consumeToken(TOKEN_LEFT_BRACE, "Expected block body");
+	beginScope();
+	parseBlockStatement();
+	endScope();
+
+	emitBytes(OP_CLASS, index);
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
 }
 

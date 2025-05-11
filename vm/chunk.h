@@ -38,6 +38,7 @@ typedef enum {
 	OP_CLOSURE,
 	OP_CLOSE_LOCAL,
 	OP_CLOSE_UPVALUE,
+	OP_CLASS,
 } OPCode;
 
 // Struct

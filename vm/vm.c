@@ -332,6 +332,12 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_CLASS:
+				{
+					ObjectString* name = AS_STRING_OBJ(READ_CONSTANT());
+					push(OBJECT(makeClassObject(name)));
+				}
+				break;
 			default:
 				return COMPILE_ERROR;
 		}
