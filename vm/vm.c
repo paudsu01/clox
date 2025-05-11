@@ -346,6 +346,40 @@ InterpreterResult runVM(){
 					push(OBJECT(makeClassObject(name)));
 				}
 				break;
+
+			case OP_GET_PROPERTY:
+				{
+					ObjectString* property = AS_STRING_OBJ(READ_CONSTANT());
+					Value instanceValue = peek(0);
+
+					if (IS_INSTANCE(instanceValue)){
+						ObjectInstance* instance = AS_INSTANCE_OBJ(instanceValue);
+						if (tableHas(instance->fields, property)){
+							// pop instance object
+							pop();
+							// push instance property value
+							push(tableGet(instance->fields, property));
+						} else{
+							runtimeError("Undefined property %s", property->string);
+							return RUNTIME_ERROR;
+
+						}
+
+					} else{
+						runtimeError("Can only access fields of instance objects");
+						return RUNTIME_ERROR;
+					}
+				}
+				break;
+
+			case OP_SET_PROPERTY:
+				{
+					ObjectString* property = AS_STRING_OBJ(READ_CONSTANT());
+					//TODO
+
+				}
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}
