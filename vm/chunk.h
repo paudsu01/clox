@@ -39,6 +39,8 @@ typedef enum {
 	OP_CLOSE_LOCAL,
 	OP_CLOSE_UPVALUE,
 	OP_CLASS,
+	OP_GET_PROPERTY,
+	OP_SET_PROPERTY,
 } OPCode;
 
 // Struct

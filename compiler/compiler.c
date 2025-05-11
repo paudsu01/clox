@@ -30,6 +30,7 @@ static int addUpvalue(Compiler*, int, bool);
 static bool noDuplicateVarInCurrentScope();
 static bool identifiersEqual(Token*,Token*);
 static void markInitialized();
+static int getValueConstantIndex(Value);
 
 // Bytecode emitting function prototypes
 
@@ -68,6 +69,7 @@ static ParseRow* getParseRow(TokenType);
 static void parseExpression();
 static void parsePrecedence(Precedence);
 static void parseBinary(bool);
+static void parseDot(bool);
 static void parseAnd(bool);
 static void parseOr(bool);
 static void parseUnary(bool);
@@ -84,7 +86,7 @@ ParseRow rules[] = {
   [TOKEN_LEFT_BRACE]    = {NULL,	     NULL,	   PREC_NONE},	 
   [TOKEN_RIGHT_BRACE]   = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_COMMA]         = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_DOT]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_DOT]           = {NULL,	     parseDot,	   PREC_CALL},	
   [TOKEN_MINUS]         = {parseUnary,	     parseBinary,  PREC_TERM},	
   [TOKEN_PLUS]          = {NULL,	     parseBinary,  PREC_TERM},	
   [TOKEN_SEMICOLON]     = {NULL,	     NULL,	   PREC_NONE},	
@@ -605,6 +607,20 @@ static void parseBinary(bool canAssign){
 	};
 }
 
+static void parseDot(bool canAssign){
+	consumeToken(TOKEN_IDENTIFIER, "Instance field or method name expected");
+	ObjectString* string = makeStringObject(parser.previousToken.start, parser.previousToken.length);
+	int index = getValueConstantIndex(OBJECT(string));
+	if (index == -1) index = addConstantAndCheckLimit(OBJECT(string));
+
+	if (canAssign && matchToken(TOKEN_EQUAL)){
+		parseExpression();
+		emitBytes(OP_SET_PROPERTY, index);
+	} else{
+		emitBytes(OP_GET_PROPERTY, index);
+	}
+}
+
 static void parsePrecedence(Precedence precedence){
 	advanceToken();
 	Token token = parser.previousToken;
@@ -904,4 +920,13 @@ static bool identifiersEqual(Token* token1, Token* token2){
 
 static void markInitialized(){
 	currentCompiler->locals[currentCompiler->currentLocalsCount-1].depth = currentCompiler->currentScopeDepth;
+}
+
+static int getValueConstantIndex(Value value){
+	Chunk* chunk = currentChunk();
+	for (int i=0; i<chunk->constants.count; i++){
+		Value val = chunk->constants.values[i];
+		if (checkIfValuesEqual(val, value)) return i;
+	}
+	return -1;
 }
