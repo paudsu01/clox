@@ -85,6 +85,12 @@ void freeObject(Object* object){
 				
 			}
 			break;
+		case OBJECT_CLASS:
+			{
+				ObjectClass* objectClass = (ObjectClass*) object;
+				reallocate(objectClass, sizeof(*objectClass), 0);
+			}
+			break;
 		default:
 			break;
 	}

@@ -143,6 +143,12 @@ void addChildObjectsToGCQueue(Object* object){
 				addObject(AS_OBJ(value));
 			}
 			break;
+		case OBJECT_CLASS:
+			{
+				ObjectClass* objClass = (ObjectClass*) object;
+				addObject((Object*) objClass->name);
+			}
+			break;
 		case OBJECT_STRING:
 			// Nothing to do
 			break;

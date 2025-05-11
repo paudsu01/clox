@@ -121,6 +121,12 @@ ObjectUpvalue* makeNewUpvalueObject(int index){
 	return objUpvalue;
 }
 
+ObjectClass* makeClassObject(ObjectString* name){
+	ObjectClass* class =(ObjectClass*) allocateObject(sizeof(ObjectClass), OBJECT_CLASS);
+	class->name = name;
+	return class;
+}
+
 uint32_t jenkinsHash(const char* key, int length){
 	// Jenkins hash function
 	// Reference: https://en.wikipedia.org/wiki/Jenkins_hash_function

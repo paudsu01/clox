@@ -16,6 +16,7 @@ typedef enum{
 	OBJECT_NATIVE_FUNCTION,
 	OBJECT_CLOSURE,
 	OBJECT_UPVALUE,
+	OBJECT_CLASS,
 } ObjectType;
 
 typedef enum{
@@ -60,12 +61,19 @@ typedef struct{
 	NativeFunction nativeFunction;
 } ObjectNativeFunction;
 
+typedef struct{
+	Object object;
+	ObjectString* name;
+} ObjectClass;
+
 ObjectString* makeStringObject(const char*,int);
 ObjectString* allocateStringObject(char*, int);
 ObjectFunction* makeNewFunctionObject();
 ObjectClosure* makeNewFunctionClosureObject(ObjectFunction*);
 ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString*, int, NativeFunction);
 ObjectUpvalue* makeNewUpvalueObject(int);
+ObjectClass* makeClassObject(ObjectString*);
+
 Object* allocateObject(int,ObjectType);
 uint32_t jenkinsHash(const char*,int);
 

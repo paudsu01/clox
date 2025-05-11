@@ -75,6 +75,12 @@ void printObject(Object* object){
 		case OBJECT_UPVALUE:
 			printf("< builtin obj: UPVALUE >");
 			break;
+		case OBJECT_CLASS:
+			{
+			ObjectString* name = ((ObjectClass*) object)->name;
+			printf("< Class: %s >", name->string);
+			}
+			break;
 		default:
 			break;
 	}
