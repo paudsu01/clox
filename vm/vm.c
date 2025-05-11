@@ -321,6 +321,14 @@ InterpreterResult runVM(){
 								frame->stackStart = vm.stackpointer - nargs - 1;
 							}
 								break;
+							case OBJECT_CLASS:
+							{
+								ObjectInstance* instance = makeInstanceObject(AS_CLASS_OBJ(funcVal));
+								// pop ObjectClass from the stack
+								pop();
+								push(OBJECT(instance));
+							}
+								break;
 							//Unreachable since every ObjectFunction object is wrapped around ObjectClosure
 							case OBJECT_FUNCTION:
 								break;
@@ -328,6 +336,61 @@ InterpreterResult runVM(){
 								break;
 						}
 					} else return RUNTIME_ERROR;
+
+				}
+				break;
+
+			case OP_CLASS:
+				{
+					ObjectString* name = AS_STRING_OBJ(READ_CONSTANT());
+					push(OBJECT(makeClassObject(name)));
+				}
+				break;
+
+			case OP_GET_PROPERTY:
+				{
+					ObjectString* property = AS_STRING_OBJ(READ_CONSTANT());
+					Value instanceValue = peek(0);
+
+					if (IS_INSTANCE(instanceValue)){
+						ObjectInstance* instance = AS_INSTANCE_OBJ(instanceValue);
+						if (tableHas(instance->fields, property)){
+							// pop instance object
+							pop();
+							// push instance property value
+							push(tableGet(instance->fields, property));
+						} else{
+							runtimeError("Undefined property %s", property->string);
+							return RUNTIME_ERROR;
+
+						}
+
+					} else{
+						runtimeError("Can only access fields of instance objects");
+						return RUNTIME_ERROR;
+					}
+				}
+				break;
+
+			case OP_SET_PROPERTY:
+				{
+					ObjectString* property = AS_STRING_OBJ(READ_CONSTANT());
+					Value instanceValue = peek(1);
+
+					if (IS_INSTANCE(instanceValue)){
+						ObjectInstance* instance = AS_INSTANCE_OBJ(instanceValue);
+						tableAdd(instance->fields, property, peek(0));
+
+						// pop expression value to set
+						Value expression = pop();
+						// pop instance object
+						pop();
+						// push instance property value
+						push(expression);
+					} else{
+						runtimeError("Can only set fields of instance objects");
+						return RUNTIME_ERROR;
+					}
 
 				}
 				break;
@@ -463,8 +526,10 @@ bool callNoErrors(int nargs, Value funcVal){
 			switch (AS_OBJ(funcVal)->objectType){
 				case OBJECT_NATIVE_FUNCTION:
 					arity = (AS_NATIVE_FUNCTION_OBJ(funcVal))->arity;
-				case OBJECT_CLOSURE:{
-					arity = (AS_CLOSURE_OBJ(funcVal))->function->arity;
+				case OBJECT_CLOSURE:
+					if (IS_CLOSURE(funcVal)) arity = (AS_CLOSURE_OBJ(funcVal))->function->arity;
+				case OBJECT_CLASS:{
+					if (IS_CLASS(funcVal)) arity = 0;
 					if (nargs != arity){
 						runtimeError("Expected %d arguments, got %d", arity, nargs);
 						return false;
@@ -473,7 +538,7 @@ bool callNoErrors(int nargs, Value funcVal){
 						runtimeError("Call stack overflow !!");
 						return false;
 					}}
-				return true;
+					return true;
 				default:
 					break;
 			}}

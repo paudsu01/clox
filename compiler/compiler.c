@@ -30,6 +30,7 @@ static int addUpvalue(Compiler*, int, bool);
 static bool noDuplicateVarInCurrentScope();
 static bool identifiersEqual(Token*,Token*);
 static void markInitialized();
+static int getValueConstantIndex(Value);
 
 // Bytecode emitting function prototypes
 
@@ -52,6 +53,7 @@ static void synchronize();
 static void parseDeclaration();
 static void parseVarDeclaration();
 static void parseFuncDeclaration();
+static void parseClassDeclaration();
 static int parseParameters();
 static void parseStatement();
 static void parsePrintStatement();
@@ -67,6 +69,7 @@ static ParseRow* getParseRow(TokenType);
 static void parseExpression();
 static void parsePrecedence(Precedence);
 static void parseBinary(bool);
+static void parseDot(bool);
 static void parseAnd(bool);
 static void parseOr(bool);
 static void parseUnary(bool);
@@ -83,7 +86,7 @@ ParseRow rules[] = {
   [TOKEN_LEFT_BRACE]    = {NULL,	     NULL,	   PREC_NONE},	 
   [TOKEN_RIGHT_BRACE]   = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_COMMA]         = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_DOT]           = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_DOT]           = {NULL,	     parseDot,	   PREC_CALL},	
   [TOKEN_MINUS]         = {parseUnary,	     parseBinary,  PREC_TERM},	
   [TOKEN_PLUS]          = {NULL,	     parseBinary,  PREC_TERM},	
   [TOKEN_SEMICOLON]     = {NULL,	     NULL,	   PREC_NONE},	
@@ -166,10 +169,11 @@ ObjectFunction* compile(const char* source){
 
 // parsing declaration/statements
 
-// declaration -> varDecl | statement | funcDecl ;
+// declaration -> classDecl | varDecl | statement | funcDecl ;
 static void parseDeclaration(){
 	if (matchToken(TOKEN_VAR)) parseVarDeclaration();
 	else if (matchToken(TOKEN_FUN)) parseFuncDeclaration();
+	else if (matchToken(TOKEN_CLASS)) parseClassDeclaration();
 	else parseStatement();
 
 	if (parser.panicMode){
@@ -246,6 +250,27 @@ static void parseFuncDeclaration(){
 	}
 	
 	// emit byte to add it to global hash table if it is a global variable
+	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
+}
+
+static void parseClassDeclaration(){
+	consumeToken(TOKEN_IDENTIFIER, "Expect class name");
+	uint8_t index;
+
+	// Add name LoxString object to the constant table no matter what( even if it is in local context )
+	index = parseGlobalVariable();
+	if (currentCompiler->currentScopeDepth != 0){
+		// Local variable handling
+		handleLocalVariable();
+		markInitialized();
+	}
+
+	consumeToken(TOKEN_LEFT_BRACE, "Expected block body");
+	beginScope();
+	parseBlockStatement();
+	endScope();
+
+	emitBytes(OP_CLASS, index);
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
 }
 
@@ -582,6 +607,20 @@ static void parseBinary(bool canAssign){
 	};
 }
 
+static void parseDot(bool canAssign){
+	consumeToken(TOKEN_IDENTIFIER, "Instance field or method name expected");
+	ObjectString* string = makeStringObject(parser.previousToken.start, parser.previousToken.length);
+	int index = getValueConstantIndex(OBJECT(string));
+	if (index == -1) index = addConstantAndCheckLimit(OBJECT(string));
+
+	if (canAssign && matchToken(TOKEN_EQUAL)){
+		parseExpression();
+		emitBytes(OP_SET_PROPERTY, index);
+	} else{
+		emitBytes(OP_GET_PROPERTY, index);
+	}
+}
+
 static void parsePrecedence(Precedence precedence){
 	advanceToken();
 	Token token = parser.previousToken;
@@ -881,4 +920,13 @@ static bool identifiersEqual(Token* token1, Token* token2){
 
 static void markInitialized(){
 	currentCompiler->locals[currentCompiler->currentLocalsCount-1].depth = currentCompiler->currentScopeDepth;
+}
+
+static int getValueConstantIndex(Value value){
+	Chunk* chunk = currentChunk();
+	for (int i=0; i<chunk->constants.count; i++){
+		Value val = chunk->constants.values[i];
+		if (checkIfValuesEqual(val, value)) return i;
+	}
+	return -1;
 }

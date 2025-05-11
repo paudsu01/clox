@@ -5,6 +5,8 @@
 
 // ObjectUpvalue defined in "value.h" because of circular dependency problems
 
+struct Table;
+
 // Rely on forward declaration for Chunk
 // since "chunk.h" uses "object.h", so cannot include "chunk.h"
 typedef struct Chunk Chunk;
@@ -16,6 +18,8 @@ typedef enum{
 	OBJECT_NATIVE_FUNCTION,
 	OBJECT_CLOSURE,
 	OBJECT_UPVALUE,
+	OBJECT_CLASS,
+	OBJECT_INSTANCE
 } ObjectType;
 
 typedef enum{
@@ -60,12 +64,26 @@ typedef struct{
 	NativeFunction nativeFunction;
 } ObjectNativeFunction;
 
+typedef struct{
+	Object object;
+	ObjectString* name;
+} ObjectClass;
+
+typedef struct{
+	Object object;
+	ObjectClass* Class;
+	struct Table* fields;
+} ObjectInstance;
+
 ObjectString* makeStringObject(const char*,int);
 ObjectString* allocateStringObject(char*, int);
 ObjectFunction* makeNewFunctionObject();
 ObjectClosure* makeNewFunctionClosureObject(ObjectFunction*);
 ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString*, int, NativeFunction);
 ObjectUpvalue* makeNewUpvalueObject(int);
+ObjectClass* makeClassObject(ObjectString*);
+ObjectInstance* makeInstanceObject(ObjectClass*);
+
 Object* allocateObject(int,ObjectType);
 uint32_t jenkinsHash(const char*,int);
 

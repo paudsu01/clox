@@ -161,6 +161,21 @@ int disassembleInstruction(Chunk* chunk, int index){
 			handleByteInstruction(chunk, ++index);
 			break;
 
+		case OP_CLASS:
+			printf("OP_CLASS\t");
+			handleConstantInstruction(chunk, ++index);
+			break;
+
+		case OP_GET_PROPERTY:
+			printf("OP_GET_PROPERTY\t");
+			handleByteInstruction(chunk, ++index);
+			break;
+
+		case OP_SET_PROPERTY:
+			printf("OP_SET_PROPERTY\t");
+			handleByteInstruction(chunk, ++index);
+			break;
+
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;

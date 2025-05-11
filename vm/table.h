@@ -10,7 +10,7 @@ typedef struct{
 	Value value;
 } Entry;
 
-typedef struct{
+typedef struct Table{
 	int count;
 	int capacity;
 	Entry* entries;
