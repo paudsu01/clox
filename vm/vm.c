@@ -375,7 +375,22 @@ InterpreterResult runVM(){
 			case OP_SET_PROPERTY:
 				{
 					ObjectString* property = AS_STRING_OBJ(READ_CONSTANT());
-					//TODO
+					Value instanceValue = peek(1);
+
+					if (IS_INSTANCE(instanceValue)){
+						ObjectInstance* instance = AS_INSTANCE_OBJ(instanceValue);
+						tableAdd(instance->fields, property, peek(0));
+
+						// pop expression value to set
+						Value expression = pop();
+						// pop instance object
+						pop();
+						// push instance property value
+						push(expression);
+					} else{
+						runtimeError("Can only set fields of instance objects");
+						return RUNTIME_ERROR;
+					}
 
 				}
 				break;
