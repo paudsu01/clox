@@ -329,6 +329,17 @@ InterpreterResult runVM(){
 								push(OBJECT(instance));
 							}
 								break;
+							case OBJECT_BOUND_METHOD:
+							{
+								ObjectBoundMethod* boundMethod = AS_BOUND_METHOD_OBJ(funcVal);
+								*(vm.stackpointer - nargs - 1) = OBJECT(boundMethod->closure);
+
+								frame = &(vm.frames[vm.frameCount++]);
+								initCallFrame(frame);
+								addClosureToCurrentCallFrame(frame, AS_CLOSURE_OBJ(funcVal));
+								frame->stackStart = vm.stackpointer - nargs - 1;
+							}
+								break;
 							//Unreachable since every ObjectFunction object is wrapped around ObjectClosure
 							case OBJECT_FUNCTION:
 								break;
@@ -375,10 +386,13 @@ InterpreterResult runVM(){
 						} else{
 							ObjectClass* class = instance->Class;
 							if (tableHas(class->methods, property)){
+								// Create a bound method to capture the `instance` which is on the stack and bind the closure object with it
+								ObjectClosure* closure= AS_CLOSURE_OBJ(tableGet(class->methods, property));
+								ObjectBoundMethod* boundMethod = makeBoundMethodObject(closure, instance);
+
 								// pop instance object
 								pop();
-								// push instance property value
-								push(tableGet(class->methods, property));
+								push(OBJECT(boundMethod));
 							} else{
 								runtimeError("Undefined property %s", property->string);
 								return RUNTIME_ERROR;
@@ -547,6 +561,8 @@ bool callNoErrors(int nargs, Value funcVal){
 			switch (AS_OBJ(funcVal)->objectType){
 				case OBJECT_NATIVE_FUNCTION:
 					arity = (AS_NATIVE_FUNCTION_OBJ(funcVal))->arity;
+				case OBJECT_BOUND_METHOD:
+					if (IS_BOUND_METHOD(funcVal)) arity = (AS_BOUND_METHOD_OBJ(funcVal))->closure->function->arity;
 				case OBJECT_CLOSURE:
 					if (IS_CLOSURE(funcVal)) arity = (AS_CLOSURE_OBJ(funcVal))->function->arity;
 				case OBJECT_CLASS:{
@@ -567,7 +583,7 @@ bool callNoErrors(int nargs, Value funcVal){
 		default:
 			break;
 	}
-	runtimeError("Can only call functions and classes");
+	runtimeError("Can only call functions, methods and classes");
 	return false;
 }
 

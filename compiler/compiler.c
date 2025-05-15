@@ -131,7 +131,7 @@ void initCompiler(Compiler* compiler, FunctionType type){
 	compiler->currentUpvaluesCount = 0;
 
 	compiler->type = type;
-	compiler->function = makeNewFunctionObject();
+	compiler->function = makeNewFunctionObject(type);
 
 	// Assign first slot to the current function
 	Local* local = &compiler->locals[compiler->currentLocalsCount++];

@@ -166,6 +166,13 @@ void addChildObjectsToGCQueue(Object* object){
 				addTableToGCQueue(objInstance->fields);	
 			}
 			break;
+		case OBJECT_BOUND_METHOD:
+			{
+				ObjectBoundMethod* boundMethod = (ObjectBoundMethod*) object;
+				addObject((Object*)boundMethod->closure);
+				addObject((Object*)boundMethod->instance);
+			}
+			break;
 		case OBJECT_STRING:
 			// Nothing to do
 			break;

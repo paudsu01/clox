@@ -19,7 +19,8 @@ typedef enum{
 	OBJECT_CLOSURE,
 	OBJECT_UPVALUE,
 	OBJECT_CLASS,
-	OBJECT_INSTANCE
+	OBJECT_INSTANCE,
+	OBJECT_BOUND_METHOD
 } ObjectType;
 
 typedef enum{
@@ -48,6 +49,7 @@ typedef struct{
 	int upvaluesCount;
 	ObjectString* name;
 	Chunk* chunk;
+	FunctionType type;
 } ObjectFunction;
 
 typedef struct{
@@ -78,14 +80,21 @@ typedef struct{
 	struct Table* fields;
 } ObjectInstance;
 
+typedef struct{
+	Object object;
+	ObjectClosure* closure;
+	ObjectInstance* instance;
+} ObjectBoundMethod;
+
 ObjectString* makeStringObject(const char*,int);
 ObjectString* allocateStringObject(char*, int);
-ObjectFunction* makeNewFunctionObject();
+ObjectFunction* makeNewFunctionObject(FunctionType);
 ObjectClosure* makeNewFunctionClosureObject(ObjectFunction*);
 ObjectNativeFunction* makeNewNativeFunctionObject(ObjectString*, int, NativeFunction);
 ObjectUpvalue* makeNewUpvalueObject(int);
 ObjectClass* makeClassObject(ObjectString*);
 ObjectInstance* makeInstanceObject(ObjectClass*);
+ObjectBoundMethod* makeBoundMethodObject(ObjectClosure*, ObjectInstance*);
 
 Object* allocateObject(int,ObjectType);
 uint32_t jenkinsHash(const char*,int);
