@@ -151,6 +151,8 @@ void initCompiler(Compiler* compiler, FunctionType type){
 			local->name.start = compiler->function->name->string;
 			local->name.length = compiler->function->name->length;
 		}
+	} else{
+		currentCompilingClass = NULL;
 	}
 
 	currentCompiler = compiler;
@@ -281,6 +283,12 @@ static void parseClassDeclaration(){
 	}
 
 	emitBytes(OP_CLASS, index);
+
+	// Define a new compiling class
+	CompilingClass newCompilingClass;
+	newCompilingClass.parent = currentCompilingClass;
+	currentCompilingClass = &newCompilingClass;
+
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
 
 	// push the class object on the top again since we will need it to bind the methods to the class
@@ -296,6 +304,9 @@ static void parseClassDeclaration(){
 
 	// pop class object from top once method binding is done
 	emitByte(OP_POP);
+
+	// Change the current compiling class back to the parent
+	currentCompilingClass = newCompilingClass.parent;
 	consumeToken(TOKEN_RIGHT_BRACE, "'}' expected at end of class body");
 }
 
