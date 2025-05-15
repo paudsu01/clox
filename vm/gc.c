@@ -44,6 +44,9 @@ void markObjects(){
 }
 
 void markRoots(){
+	// mark "init" string from vm
+	markObject((Object*) vm.init);
+
 	// mark the global variables first
 	markHashTable(&vm.globals);
 

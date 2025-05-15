@@ -31,6 +31,8 @@ typedef struct{
 	Table strings;
 	Table globals;
 
+	ObjectString* init;
+
 	int bytesAllocated;
 	int nextGCRun;
 

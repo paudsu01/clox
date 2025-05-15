@@ -22,10 +22,12 @@ void initVM(bool end){
 	vm.gc = (GC) {.count=0, .capacity=0, .objectsQueue=NULL};
 	vm.bytesAllocated = 0;
 	vm.nextGCRun = INITIAL_GC_TRIGGER_VALUE;
+	vm.init = makeStringObject("init",4);
 
 	if (!end) declareNativeFunctions();
 }
 
+// Call frame functions
 void initCallFrame(CallFrame* frame){
 	frame->ip = NULL;
 	frame->stackStart = vm.stackpointer;
@@ -37,6 +39,14 @@ void addClosureToCurrentCallFrame(CallFrame* frame, ObjectClosure* closure){
 	frame->ip = closure->function->chunk->code;
 }
 
+void setupFrameForClosureCall(ObjectClosure* objClosure, CallFrame** frame, int nargs){
+	*frame = &(vm.frames[vm.frameCount++]);
+	initCallFrame(*frame);
+	addClosureToCurrentCallFrame(*frame, objClosure);
+	(*frame)->stackStart = vm.stackpointer - nargs - 1;
+}
+
+// Interpret function for VM							
 InterpreterResult interpret(const char* source){
 
 	ObjectFunction* currentFunction = compile(source);
@@ -314,29 +324,30 @@ InterpreterResult runVM(){
 								break;
 							case OBJECT_CLOSURE:
 							{
-								frame = &(vm.frames[vm.frameCount++]);
-								initCallFrame(frame);
-								addClosureToCurrentCallFrame(frame, AS_CLOSURE_OBJ(funcVal));
-								frame->stackStart = vm.stackpointer - nargs - 1;
+								ObjectClosure* objClosure = AS_CLOSURE_OBJ(funcVal);
+
+								setupFrameForClosureCall(objClosure, &frame, nargs);
 							}
 								break;
 							case OBJECT_CLASS:
 							{
 								ObjectInstance* instance = makeInstanceObject(AS_CLASS_OBJ(funcVal));
-								// pop ObjectClass from the stack
-								pop();
-								push(OBJECT(instance));
+
+								// Call the init function if any
+								*(vm.stackpointer - 1 - nargs) = OBJECT(instance);
+								if (tableHas((AS_CLASS_OBJ(funcVal))->methods, vm.init)){
+									ObjectClosure* initClosure = AS_CLOSURE_OBJ(tableGet((AS_CLASS_OBJ(funcVal))->methods, vm.init));
+									setupFrameForClosureCall(initClosure, &frame, nargs);
+								}
 							}
 								break;
 							case OBJECT_BOUND_METHOD:
 							{
 								ObjectBoundMethod* boundMethod = AS_BOUND_METHOD_OBJ(funcVal);
 								*(vm.stackpointer - nargs - 1) = OBJECT(boundMethod->instance);
+								ObjectClosure* objClosure = boundMethod->closure;
 
-								frame = &(vm.frames[vm.frameCount++]);
-								initCallFrame(frame);
-								addClosureToCurrentCallFrame(frame, (AS_BOUND_METHOD_OBJ(funcVal))->closure);
-								frame->stackStart = vm.stackpointer - nargs - 1;
+								setupFrameForClosureCall(objClosure, &frame, nargs);
 							}
 								break;
 							//Unreachable since every ObjectFunction object is wrapped around ObjectClosure
@@ -565,7 +576,12 @@ bool callNoErrors(int nargs, Value funcVal){
 				case OBJECT_CLOSURE:
 					if (IS_CLOSURE(funcVal)) arity = (AS_CLOSURE_OBJ(funcVal))->function->arity;
 				case OBJECT_CLASS:{
-					if (IS_CLASS(funcVal)) arity = 0;
+					if (IS_CLASS(funcVal)){
+						ObjectClass* objClass = AS_CLASS_OBJ(funcVal);
+						if (tableHas(objClass->methods, vm.init)) arity = (AS_CLOSURE_OBJ(tableGet(objClass->methods, vm.init)))->function->arity;
+						else arity = 0;
+					}
+
 					if (nargs != arity){
 						runtimeError("Expected %d arguments, got %d", arity, nargs);
 						return false;
