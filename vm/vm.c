@@ -332,7 +332,7 @@ InterpreterResult runVM(){
 							case OBJECT_BOUND_METHOD:
 							{
 								ObjectBoundMethod* boundMethod = AS_BOUND_METHOD_OBJ(funcVal);
-								*(vm.stackpointer - nargs - 1) = OBJECT(boundMethod->closure);
+								*(vm.stackpointer - nargs - 1) = OBJECT(boundMethod->instance);
 
 								frame = &(vm.frames[vm.frameCount++]);
 								initCallFrame(frame);

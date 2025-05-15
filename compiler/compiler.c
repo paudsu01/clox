@@ -77,6 +77,7 @@ static void parseUnary(bool);
 static void parseNumber(bool);
 static void parseString(bool);
 static void parseLiteral(bool);
+static void parseThis(bool);
 static void parseIdentifier(bool);
 static void parseGrouping(bool);
 static void parseFuncCall(bool);
@@ -116,7 +117,7 @@ ParseRow rules[] = {
   [TOKEN_PRINT]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_RETURN]        = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_SUPER]         = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_THIS]          = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_THIS]          = {parseThis,	     NULL,	   PREC_NONE},	
   [TOKEN_TRUE]          = {parseLiteral,     NULL,	   PREC_NONE},	
   [TOKEN_VAR]           = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_WHILE]         = {NULL,	     NULL,	   PREC_NONE},	
@@ -140,10 +141,14 @@ void initCompiler(Compiler* compiler, FunctionType type){
 	local->name.start = "";
 	local->name.length = 0;
 
-	if (type != FUNCTION_MAIN){
+	if (type == FUNCTION){
 		compiler->function->name = makeStringObject(parser.previousToken.start, parser.previousToken.length);
 		local->name.start = compiler->function->name->string;
 		local->name.length = compiler->function->name->length;
+	} else if (type == METHOD || type == METHOD_INIT){
+		// Store `this` as the first "hidden" local variable for methods
+		local->name.start = "this";
+		local->name.length = 4;
 	}
 
 	currentCompiler = compiler;
@@ -509,6 +514,10 @@ static void parseLiteral(bool canAssign){
 			// Unreachable
 			break;
 	}
+}
+
+static void parseThis(bool canAssign){
+	emitBytes(OP_GET_LOCAL, 0);
 }
 
 static void parseIdentifier(bool canAssign){
