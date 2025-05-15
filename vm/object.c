@@ -124,6 +124,11 @@ ObjectUpvalue* makeNewUpvalueObject(int index){
 ObjectClass* makeClassObject(ObjectString* name){
 	ObjectClass* class =(ObjectClass*) allocateObject(sizeof(ObjectClass), OBJECT_CLASS);
 	class->name = name;
+
+	Table* methods = reallocate(NULL, 0, sizeof(Table));
+	initTable(methods);
+	class->methods = methods;
+
 	return class;
 }
 

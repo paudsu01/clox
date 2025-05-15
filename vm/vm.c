@@ -347,6 +347,15 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_METHOD:
+				{
+					// closure object will be on top of the stack 
+					// the class object should be right below it
+
+
+				}
+				break;
+
 			case OP_GET_PROPERTY:
 				{
 					ObjectString* property = AS_STRING_OBJ(READ_CONSTANT());

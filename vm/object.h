@@ -69,6 +69,7 @@ typedef struct{
 typedef struct{
 	Object object;
 	ObjectString* name;
+	struct Table* methods;
 } ObjectClass;
 
 typedef struct{

@@ -88,6 +88,8 @@ void freeObject(Object* object){
 		case OBJECT_CLASS:
 			{
 				ObjectClass* objectClass = (ObjectClass*) object;
+				freeTable(objectClass->methods);
+				reallocate(objectClass->methods, sizeof(*objectClass->methods), 0);
 				reallocate(objectClass, sizeof(*objectClass), 0);
 			}
 			break;
