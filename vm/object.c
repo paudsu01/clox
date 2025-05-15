@@ -148,6 +148,7 @@ ObjectBoundMethod* makeBoundMethodObject(ObjectClosure* closure, ObjectInstance*
 	ObjectBoundMethod* boundMethod =(ObjectBoundMethod*) allocateObject(sizeof(ObjectBoundMethod), OBJECT_BOUND_METHOD);
 	boundMethod->closure = closure;
 	boundMethod->instance = instance;
+	return boundMethod;
 }
 
 uint32_t jenkinsHash(const char* key, int length){
