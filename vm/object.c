@@ -54,12 +54,13 @@ ObjectString* allocateStringObject(char* string, int length){
 	}
 }
 
-ObjectFunction* makeNewFunctionObject(){
+ObjectFunction* makeNewFunctionObject(FunctionType type){
 
 	ObjectFunction* objFunction = (ObjectFunction *) allocateObject(sizeof(ObjectFunction), OBJECT_FUNCTION);
 	objFunction->name = NULL;
 	objFunction->arity = 0;
 	objFunction->upvaluesCount = 0;
+	objFunction->type = type;
 
 	// Push beforehand in the off chance the gc runs and we lose the function object
 	push(OBJECT(objFunction));
@@ -141,6 +142,12 @@ ObjectInstance* makeInstanceObject(ObjectClass* Class){
 	instance->fields = fields;
 
 	return instance;
+}
+
+ObjectBoundMethod* makeBoundMethodObject(ObjectClosure* closure, ObjectInstance* instance){
+	ObjectBoundMethod* boundMethod =(ObjectBoundMethod*) allocateObject(sizeof(ObjectBoundMethod), OBJECT_BOUND_METHOD);
+	boundMethod->closure = closure;
+	boundMethod->instance = instance;
 }
 
 uint32_t jenkinsHash(const char* key, int length){

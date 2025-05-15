@@ -101,6 +101,12 @@ void freeObject(Object* object){
 				reallocate(objectInstance, sizeof(*objectInstance), 0);
 			}
 			break;
+		case OBJECT_BOUND_METHOD:
+			{
+				ObjectBoundMethod* objectBoundMethod = (ObjectBoundMethod*) object;
+				reallocate(objectBoundMethod, sizeof(*objectBoundMethod), 0);
+			}
+			break;
 		default:
 			break;
 	}

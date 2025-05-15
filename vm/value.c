@@ -92,6 +92,12 @@ void printObject(Object* object){
 				printf(" >");
 			}
 			break;
+		case OBJECT_BOUND_METHOD:
+			{
+				ObjectFunction* function = ((ObjectBoundMethod*) object)->closure->function;
+				printObject((Object*) function);
+			}
+			break;
 		default:
 			break;
 	}
@@ -99,7 +105,10 @@ void printObject(Object* object){
 
 void printFunction(ObjectFunction* function) {
 	if (function->name != NULL)
-		printf("< function: %.*s >", function->name->length, function->name->string);
+	{
+		char* type = (function->type == FUNCTION) ? "function" : "method";
+		printf("< %s: %.*s >", type, function->name->length, function->name->string);
+	}
 	else
 		printf("< script >");
 }
