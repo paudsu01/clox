@@ -172,11 +172,17 @@ int disassembleInstruction(Chunk* chunk, int index){
 
 		case OP_GET_PROPERTY:
 			printf("OP_GET_PROPERTY\t");
-			handleByteInstruction(chunk, ++index);
+			handleConstantInstruction(chunk, ++index);
 			break;
 
 		case OP_SET_PROPERTY:
 			printf("OP_SET_PROPERTY\t");
+			handleConstantInstruction(chunk, ++index);
+			break;
+
+		case OP_FAST_METHOD_CALL:
+			printf("OP_FAST_METHOD_CALL\t");
+			handleConstantInstruction(chunk, ++index);
 			handleByteInstruction(chunk, ++index);
 			break;
 

@@ -440,6 +440,10 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_FAST_METHOD_CALL:
+				//TODO
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}

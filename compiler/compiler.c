@@ -80,6 +80,7 @@ static void parseLiteral(bool);
 static void parseThis(bool);
 static void parseIdentifier(bool);
 static void parseGrouping(bool);
+static int parseArguments();
 static void parseFuncCall(bool);
 
 ParseRow rules[] = {
@@ -495,19 +496,27 @@ static void parseExpression(){
 	parsePrecedence(PREC_ASSIGN);
 }
 
+
 static void parseGrouping(bool canAssign){
 	parseExpression();
 	consumeToken(TOKEN_RIGHT_PAREN, "'(' expected");
 }
 
+
+static int parseArguments(){
+	int nargs = 0;
+	do{
+		parseExpression();
+		nargs++;
+	} while(matchToken(TOKEN_COMMA));
+	return nargs;
+}
+
+
 static void parseFuncCall(bool canAssign){
 	int nargs=0;
 	if (!matchToken(TOKEN_RIGHT_PAREN)){
-		do{
-			parseExpression();
-			nargs++;
-		}while(matchToken(TOKEN_COMMA));
-
+		nargs = parseArguments();
 		consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function call");
 	}
 	emitBytes(OP_CALL, nargs);
@@ -670,6 +679,14 @@ static void parseDot(bool canAssign){
 	if (canAssign && matchToken(TOKEN_EQUAL)){
 		parseExpression();
 		emitBytes(OP_SET_PROPERTY, index);
+	} else if (matchToken(TOKEN_LEFT_PAREN)){
+		int nargs = parseArguments();
+		consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function call");
+		// OP_FAST_METHOD_CALL methodNameIndex args
+		// using this instruction, we don't need to create boundMethod during runtime since it is slower and not necessary for simple cases like this as we know where the instance wil be on the stack
+		emitBytes(OP_FAST_METHOD_CALL, index);
+		emitByte(nargs);
+
 	} else{
 		emitBytes(OP_GET_PROPERTY, index);
 	}
