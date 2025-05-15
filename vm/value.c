@@ -61,7 +61,10 @@ void printValue(Value value){
 void printObject(Object* object){
 	switch(object->objectType){
 		case OBJECT_STRING:
-			printf("\"%s\"", ((ObjectString*)object)->string);
+			{
+				ObjectString* objString = (ObjectString*) object;
+				printf("%s", objString->string);
+			}
 			break;
 		case OBJECT_FUNCTION:
 			printFunction((ObjectFunction *)object);

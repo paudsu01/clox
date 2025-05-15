@@ -288,7 +288,7 @@ static void parseClassDeclaration(){
 	}
 
 	// pop class object from top once method binding is done
-	pop();
+	emitByte(OP_POP);
 	consumeToken(TOKEN_RIGHT_BRACE, "'}' expected at end of class body");
 }
 

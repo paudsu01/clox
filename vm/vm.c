@@ -351,8 +351,12 @@ InterpreterResult runVM(){
 				{
 					// closure object will be on top of the stack 
 					// the class object should be right below it
+					ObjectClosure* closure = AS_CLOSURE_OBJ(peek(0));
+					ObjectClass* class = AS_CLASS_OBJ(peek(1));
 
-
+					tableAdd(class->methods, closure->function->name, peek(0));
+					// pop closure object from stack 
+					pop();
 				}
 				break;
 
@@ -369,8 +373,16 @@ InterpreterResult runVM(){
 							// push instance property value
 							push(tableGet(instance->fields, property));
 						} else{
-							runtimeError("Undefined property %s", property->string);
-							return RUNTIME_ERROR;
+							ObjectClass* class = instance->Class;
+							if (tableHas(class->methods, property)){
+								// pop instance object
+								pop();
+								// push instance property value
+								push(tableGet(class->methods, property));
+							} else{
+								runtimeError("Undefined property %s", property->string);
+								return RUNTIME_ERROR;
+							}
 
 						}
 
