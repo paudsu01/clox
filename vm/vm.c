@@ -40,13 +40,12 @@ void addClosureToCurrentCallFrame(CallFrame* frame, ObjectClosure* closure){
 InterpreterResult interpret(const char* source){
 
 	ObjectFunction* currentFunction = compile(source);
-	ObjectClosure* currentClosure = makeNewFunctionClosureObject(currentFunction);
-
 	if (currentFunction == NULL){
 		return COMPILE_ERROR;
 	}
 
 	else {
+		ObjectClosure* currentClosure = makeNewFunctionClosureObject(currentFunction);
 
 		CallFrame* frame = &(vm.frames[vm.frameCount=0]);
 		initCallFrame(frame);

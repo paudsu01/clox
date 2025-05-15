@@ -530,6 +530,9 @@ static void parseLiteral(bool canAssign){
 }
 
 static void parseThis(bool canAssign){
+	if (currentCompilingClass == NULL)
+		errorAtPreviousToken("Cannot use `this` keyword outside of a class");
+
 	emitBytes(OP_GET_LOCAL, 0);
 }
 
