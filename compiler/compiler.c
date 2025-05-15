@@ -39,7 +39,7 @@ static void emitBytes(uint8_t, uint8_t);
 static int emitJump(uint8_t);
 static void patchJump(int, uint8_t);
 static ObjectFunction* endCompiler();
-static void emitReturn(bool);
+static void emitReturn(bool,Token);
 static void emitConstant(Value);
 static uint8_t addConstantAndCheckLimit(Value value);
 
@@ -298,7 +298,14 @@ static void parseClassDeclaration(){
 	// parse the method declarations
 	while (!checkToken(TOKEN_EOF) && checkToken(TOKEN_IDENTIFIER)){
 		consumeToken(TOKEN_IDENTIFIER, "Expected method name");
-		parseFunction(METHOD);
+
+		if(parser.previousToken.length == 4 && (strncmp(parser.previousToken.start, "init", 4) == 0))
+		{
+			parseFunction(METHOD_INIT);
+		}
+		else
+			parseFunction(METHOD);
+
 		emitByte(OP_METHOD);
 	}
 
@@ -471,13 +478,16 @@ static void parseWhileStatement(){
 static void parseReturnStatement(){
 	if (currentCompiler->type == FUNCTION_MAIN) errorAtPreviousToken("Cannot return when not inside a function");
 
+	Token previousToken = parser.previousToken;
 	if (!matchToken(TOKEN_SEMICOLON)){
 		parseExpression();
+		previousToken = parser.previousToken;
 		consumeToken(TOKEN_SEMICOLON, "Expected ';' at end of return statement");
 	} else{
 		emitByte(OP_NIL);
 	}
-	emitReturn(false);
+	bool noExpression = (previousToken.length == 6) && (strncmp(previousToken.start, "return", 6) == 0);
+	emitReturn(noExpression, previousToken);
 }
 
 // PrattParsing functions
@@ -782,7 +792,7 @@ static uint8_t addConstantAndCheckLimit(Value value){
 }
 
 static ObjectFunction* endCompiler(){
-	emitReturn(true);
+	emitReturn(true, parser.previousToken);
 	#ifdef DEBUG_PRINT_CODE
 	if (!parser.hadError) disassembleChunk(currentChunk(), currentCompiler->type == FUNCTION_MAIN ? "<script>" : currentCompiler->function->name->string);
 	#endif
@@ -792,12 +802,21 @@ static ObjectFunction* endCompiler(){
 	return function;
 }
 
-static void emitReturn(bool noExpression){
-	if (noExpression){
-		emitByte(OP_NIL);
+static void emitReturn(bool noExpression, Token previousToken){
+	ObjectFunction* function = currentCompiler->function;
+	if (function->type == METHOD_INIT){
+		if (noExpression){
+			emitBytes(OP_GET_LOCAL, 0);
+		} else{
+			if(!(previousToken.length == 4 && (strncmp(previousToken.start, "this", 4) == 0)))
+				 errorAtPreviousToken("Cannot return anything except for `this` inside the init method");
+		}
+	} else{
+		if (noExpression){
+			emitByte(OP_NIL);
+		}
 	}
 	emitByte(OP_RETURN);
-
 }
 // Error handling functions
 
