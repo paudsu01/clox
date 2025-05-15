@@ -119,6 +119,10 @@ int disassembleInstruction(Chunk* chunk, int index){
 			printf("OP_POP_UPVALUE\n");
 			break;
 
+		// OP_METHOD will take the OP_CLOSURE from the top of the stack and add it to the class which can be retrieved by peek(1)
+		case OP_METHOD:
+			printf("OP_METHOD\n");
+			break;
 
 		case OP_JUMP:
 			printf("OP_JUMP\t");
