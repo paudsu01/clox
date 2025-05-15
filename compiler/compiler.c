@@ -141,14 +141,16 @@ void initCompiler(Compiler* compiler, FunctionType type){
 	local->name.start = "";
 	local->name.length = 0;
 
-	if (type == FUNCTION){
+	if (type != FUNCTION_MAIN){
 		compiler->function->name = makeStringObject(parser.previousToken.start, parser.previousToken.length);
-		local->name.start = compiler->function->name->string;
-		local->name.length = compiler->function->name->length;
-	} else if (type == METHOD || type == METHOD_INIT){
-		// Store `this` as the first "hidden" local variable for methods
-		local->name.start = "this";
-		local->name.length = 4;
+		if (type == METHOD || type == METHOD_INIT){
+			// Store `this` as the first "hidden" local variable for methods
+			local->name.start = "this";
+			local->name.length = 4;
+		} else{
+			local->name.start = compiler->function->name->string;
+			local->name.length = compiler->function->name->length;
+		}
 	}
 
 	currentCompiler = compiler;

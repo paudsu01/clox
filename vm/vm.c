@@ -336,7 +336,7 @@ InterpreterResult runVM(){
 
 								frame = &(vm.frames[vm.frameCount++]);
 								initCallFrame(frame);
-								addClosureToCurrentCallFrame(frame, AS_CLOSURE_OBJ(funcVal));
+								addClosureToCurrentCallFrame(frame, (AS_BOUND_METHOD_OBJ(funcVal))->closure);
 								frame->stackStart = vm.stackpointer - nargs - 1;
 							}
 								break;
