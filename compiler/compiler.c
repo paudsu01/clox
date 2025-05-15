@@ -53,6 +53,7 @@ static void synchronize();
 static void parseDeclaration();
 static void parseVarDeclaration();
 static void parseFuncDeclaration();
+static void parseFunction(FunctionType);
 static void parseClassDeclaration();
 static int parseParameters();
 static void parseStatement();
@@ -209,24 +210,12 @@ static void parseVarDeclaration(){
 	else markInitialized();
 }
 
-// funDec -> "fun" IDENTIFIER "(" IDENTIFIER ? ("," IDENTIFIER)* ")" block
-static void parseFuncDeclaration(){
-	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
-	uint8_t index;
-
-	if (currentCompiler->currentScopeDepth == 0){
-		// Global variable
-		index = parseGlobalVariable();
-
-	} else {
-		// Local variable handling
-		handleLocalVariable();
-		markInitialized();
-	}
-
+// Parses the function's body and emits OP_CLOSURE instructions to create the function closure at runtime
+static void parseFunction(FunctionType type){
 	Compiler newCompiler;
-	initCompiler(&newCompiler, FUNCTION);
+	initCompiler(&newCompiler, type);
 
+	// There is only beginScope() called and no endScope() because the return instruction takes care of "popping" the local variables from the stack as well as the upvalues
 	beginScope();
 	//handleArguments
 	int nargs = parseParameters();
@@ -248,10 +237,29 @@ static void parseFuncDeclaration(){
 		Upvalue upvalue = newCompiler.upvalues[i];
 		emitBytes((upvalue.isLocal) ? OP_CLOSE_LOCAL: OP_CLOSE_UPVALUE, upvalue.index);
 	}
-	
+}
+
+
+// funDec -> "fun" IDENTIFIER "(" IDENTIFIER ? ("," IDENTIFIER)* ")" block
+static void parseFuncDeclaration(){
+	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
+	uint8_t index;
+
+	if (currentCompiler->currentScopeDepth == 0){
+		// Global variable
+		index = parseGlobalVariable();
+
+	} else {
+		// Local variable handling
+		handleLocalVariable();
+		markInitialized();
+	}
+
+	parseFunction(FUNCTION);	
 	// emit byte to add it to global hash table if it is a global variable
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
 }
+
 
 static void parseClassDeclaration(){
 	consumeToken(TOKEN_IDENTIFIER, "Expect class name");
@@ -265,13 +273,23 @@ static void parseClassDeclaration(){
 		markInitialized();
 	}
 
-	consumeToken(TOKEN_LEFT_BRACE, "Expected block body");
-	beginScope();
-	parseBlockStatement();
-	endScope();
-
 	emitBytes(OP_CLASS, index);
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
+
+	// push the class object on the top again since we will need it to bind the methods to the class
+	parseIdentifier(false);
+
+	consumeToken(TOKEN_LEFT_BRACE, "Expect class body");
+	// parse the method declarations
+	while (!checkToken(TOKEN_EOF) && checkToken(TOKEN_IDENTIFIER)){
+		consumeToken(TOKEN_IDENTIFIER, "Expected method name");
+		parseFunction(METHOD);
+		emitByte(OP_METHOD);
+	}
+
+	// pop class object from top once method binding is done
+	pop();
+	consumeToken(TOKEN_RIGHT_BRACE, "'}' expected at end of class body");
 }
 
 // param -> "(" IDENTIFIER ? ("," IDENTIFIER )* ")"
@@ -289,6 +307,7 @@ static int parseParameters(){
 		if (nargs > UINT8_T_LIMIT) errorAtPreviousToken("Cannot have more than 255 arguments");
 	}
 	while (matchToken(TOKEN_COMMA));
+	
 	consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function parameters");
 	return nargs;
 }

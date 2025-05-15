@@ -25,6 +25,8 @@ typedef enum{
 typedef enum{
 	FUNCTION_MAIN,
 	FUNCTION,
+	METHOD,
+	METHOD_INIT
 } FunctionType;
 
 typedef struct Object{
