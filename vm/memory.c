@@ -88,6 +88,8 @@ void freeObject(Object* object){
 		case OBJECT_CLASS:
 			{
 				ObjectClass* objectClass = (ObjectClass*) object;
+				freeTable(objectClass->methods);
+				reallocate(objectClass->methods, sizeof(*objectClass->methods), 0);
 				reallocate(objectClass, sizeof(*objectClass), 0);
 			}
 			break;
@@ -97,6 +99,12 @@ void freeObject(Object* object){
 				freeTable(objectInstance->fields);
 				reallocate(objectInstance->fields, sizeof(*objectInstance->fields), 0);
 				reallocate(objectInstance, sizeof(*objectInstance), 0);
+			}
+			break;
+		case OBJECT_BOUND_METHOD:
+			{
+				ObjectBoundMethod* objectBoundMethod = (ObjectBoundMethod*) object;
+				reallocate(objectBoundMethod, sizeof(*objectBoundMethod), 0);
 			}
 			break;
 		default:

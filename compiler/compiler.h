@@ -39,10 +39,15 @@ typedef struct Compiler{
 	FunctionType type;
 } Compiler;
 
+typedef struct CompilingClass{
+	struct CompilingClass* parent;
+} CompilingClass;
+
 void initCompiler(Compiler*, FunctionType);
 
 Parser parser;
 Compiler* currentCompiler;
+CompilingClass* currentCompilingClass;
 
 typedef enum{
 	PREC_NONE=0,

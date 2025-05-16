@@ -39,7 +39,7 @@ static void emitBytes(uint8_t, uint8_t);
 static int emitJump(uint8_t);
 static void patchJump(int, uint8_t);
 static ObjectFunction* endCompiler();
-static void emitReturn(bool);
+static void emitReturn(bool,Token);
 static void emitConstant(Value);
 static uint8_t addConstantAndCheckLimit(Value value);
 
@@ -53,6 +53,7 @@ static void synchronize();
 static void parseDeclaration();
 static void parseVarDeclaration();
 static void parseFuncDeclaration();
+static void parseFunction(FunctionType);
 static void parseClassDeclaration();
 static int parseParameters();
 static void parseStatement();
@@ -76,8 +77,10 @@ static void parseUnary(bool);
 static void parseNumber(bool);
 static void parseString(bool);
 static void parseLiteral(bool);
+static void parseThis(bool);
 static void parseIdentifier(bool);
 static void parseGrouping(bool);
+static int parseArguments();
 static void parseFuncCall(bool);
 
 ParseRow rules[] = {
@@ -115,7 +118,7 @@ ParseRow rules[] = {
   [TOKEN_PRINT]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_RETURN]        = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_SUPER]         = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_THIS]          = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_THIS]          = {parseThis,	     NULL,	   PREC_NONE},	
   [TOKEN_TRUE]          = {parseLiteral,     NULL,	   PREC_NONE},	
   [TOKEN_VAR]           = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_WHILE]         = {NULL,	     NULL,	   PREC_NONE},	
@@ -130,7 +133,7 @@ void initCompiler(Compiler* compiler, FunctionType type){
 	compiler->currentUpvaluesCount = 0;
 
 	compiler->type = type;
-	compiler->function = makeNewFunctionObject();
+	compiler->function = makeNewFunctionObject(type);
 
 	// Assign first slot to the current function
 	Local* local = &compiler->locals[compiler->currentLocalsCount++];
@@ -141,8 +144,16 @@ void initCompiler(Compiler* compiler, FunctionType type){
 
 	if (type != FUNCTION_MAIN){
 		compiler->function->name = makeStringObject(parser.previousToken.start, parser.previousToken.length);
-		local->name.start = compiler->function->name->string;
-		local->name.length = compiler->function->name->length;
+		if (type == METHOD || type == METHOD_INIT){
+			// Store `this` as the first "hidden" local variable for methods
+			local->name.start = "this";
+			local->name.length = 4;
+		} else{
+			local->name.start = compiler->function->name->string;
+			local->name.length = compiler->function->name->length;
+		}
+	} else{
+		currentCompilingClass = NULL;
 	}
 
 	currentCompiler = compiler;
@@ -209,24 +220,12 @@ static void parseVarDeclaration(){
 	else markInitialized();
 }
 
-// funDec -> "fun" IDENTIFIER "(" IDENTIFIER ? ("," IDENTIFIER)* ")" block
-static void parseFuncDeclaration(){
-	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
-	uint8_t index;
-
-	if (currentCompiler->currentScopeDepth == 0){
-		// Global variable
-		index = parseGlobalVariable();
-
-	} else {
-		// Local variable handling
-		handleLocalVariable();
-		markInitialized();
-	}
-
+// Parses the function's body and emits OP_CLOSURE instructions to create the function closure at runtime
+static void parseFunction(FunctionType type){
 	Compiler newCompiler;
-	initCompiler(&newCompiler, FUNCTION);
+	initCompiler(&newCompiler, type);
 
+	// There is only beginScope() called and no endScope() because the return instruction takes care of "popping" the local variables from the stack as well as the upvalues
 	beginScope();
 	//handleArguments
 	int nargs = parseParameters();
@@ -248,10 +247,29 @@ static void parseFuncDeclaration(){
 		Upvalue upvalue = newCompiler.upvalues[i];
 		emitBytes((upvalue.isLocal) ? OP_CLOSE_LOCAL: OP_CLOSE_UPVALUE, upvalue.index);
 	}
-	
+}
+
+
+// funDec -> "fun" IDENTIFIER "(" IDENTIFIER ? ("," IDENTIFIER)* ")" block
+static void parseFuncDeclaration(){
+	consumeToken(TOKEN_IDENTIFIER, "Expect variable name");
+	uint8_t index;
+
+	if (currentCompiler->currentScopeDepth == 0){
+		// Global variable
+		index = parseGlobalVariable();
+
+	} else {
+		// Local variable handling
+		handleLocalVariable();
+		markInitialized();
+	}
+
+	parseFunction(FUNCTION);	
 	// emit byte to add it to global hash table if it is a global variable
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
 }
+
 
 static void parseClassDeclaration(){
 	consumeToken(TOKEN_IDENTIFIER, "Expect class name");
@@ -265,13 +283,39 @@ static void parseClassDeclaration(){
 		markInitialized();
 	}
 
-	consumeToken(TOKEN_LEFT_BRACE, "Expected block body");
-	beginScope();
-	parseBlockStatement();
-	endScope();
-
 	emitBytes(OP_CLASS, index);
+
+	// Define a new compiling class
+	CompilingClass newCompilingClass;
+	newCompilingClass.parent = currentCompilingClass;
+	currentCompilingClass = &newCompilingClass;
+
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
+
+	// push the class object on the top again since we will need it to bind the methods to the class
+	parseIdentifier(false);
+
+	consumeToken(TOKEN_LEFT_BRACE, "Expect class body");
+	// parse the method declarations
+	while (!checkToken(TOKEN_EOF) && checkToken(TOKEN_IDENTIFIER)){
+		consumeToken(TOKEN_IDENTIFIER, "Expected method name");
+
+		if(parser.previousToken.length == 4 && (strncmp(parser.previousToken.start, "init", 4) == 0))
+		{
+			parseFunction(METHOD_INIT);
+		}
+		else
+			parseFunction(METHOD);
+
+		emitByte(OP_METHOD);
+	}
+
+	// pop class object from top once method binding is done
+	emitByte(OP_POP);
+
+	// Change the current compiling class back to the parent
+	currentCompilingClass = newCompilingClass.parent;
+	consumeToken(TOKEN_RIGHT_BRACE, "'}' expected at end of class body");
 }
 
 // param -> "(" IDENTIFIER ? ("," IDENTIFIER )* ")"
@@ -289,6 +333,7 @@ static int parseParameters(){
 		if (nargs > UINT8_T_LIMIT) errorAtPreviousToken("Cannot have more than 255 arguments");
 	}
 	while (matchToken(TOKEN_COMMA));
+	
 	consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function parameters");
 	return nargs;
 }
@@ -434,13 +479,16 @@ static void parseWhileStatement(){
 static void parseReturnStatement(){
 	if (currentCompiler->type == FUNCTION_MAIN) errorAtPreviousToken("Cannot return when not inside a function");
 
+	Token previousToken = parser.previousToken;
 	if (!matchToken(TOKEN_SEMICOLON)){
 		parseExpression();
+		previousToken = parser.previousToken;
 		consumeToken(TOKEN_SEMICOLON, "Expected ';' at end of return statement");
 	} else{
 		emitByte(OP_NIL);
 	}
-	emitReturn(false);
+	bool noExpression = (previousToken.length == 6) && (strncmp(previousToken.start, "return", 6) == 0);
+	emitReturn(noExpression, previousToken);
 }
 
 // PrattParsing functions
@@ -448,19 +496,27 @@ static void parseExpression(){
 	parsePrecedence(PREC_ASSIGN);
 }
 
+
 static void parseGrouping(bool canAssign){
 	parseExpression();
 	consumeToken(TOKEN_RIGHT_PAREN, "'(' expected");
 }
 
+
+static int parseArguments(){
+	int nargs = 0;
+	do{
+		parseExpression();
+		nargs++;
+	} while(matchToken(TOKEN_COMMA));
+	return nargs;
+}
+
+
 static void parseFuncCall(bool canAssign){
 	int nargs=0;
 	if (!matchToken(TOKEN_RIGHT_PAREN)){
-		do{
-			parseExpression();
-			nargs++;
-		}while(matchToken(TOKEN_COMMA));
-
+		nargs = parseArguments();
 		consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function call");
 	}
 	emitBytes(OP_CALL, nargs);
@@ -490,6 +546,13 @@ static void parseLiteral(bool canAssign){
 			// Unreachable
 			break;
 	}
+}
+
+static void parseThis(bool canAssign){
+	if (currentCompilingClass == NULL)
+		errorAtPreviousToken("Cannot use `this` keyword outside of a class");
+
+	emitBytes(OP_GET_LOCAL, 0);
 }
 
 static void parseIdentifier(bool canAssign){
@@ -616,6 +679,16 @@ static void parseDot(bool canAssign){
 	if (canAssign && matchToken(TOKEN_EQUAL)){
 		parseExpression();
 		emitBytes(OP_SET_PROPERTY, index);
+	} else if (matchToken(TOKEN_LEFT_PAREN)){
+		int nargs = 0;
+		if (!checkToken(TOKEN_RIGHT_PAREN))
+			nargs = parseArguments();
+		consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function call");
+		// OP_FAST_METHOD_CALL methodNameIndex args
+		// using this instruction, we don't need to create boundMethod during runtime since it is slower and not necessary for simple cases like this as we know where the instance wil be on the stack
+		emitBytes(OP_FAST_METHOD_CALL, index);
+		emitByte(nargs);
+
 	} else{
 		emitBytes(OP_GET_PROPERTY, index);
 	}
@@ -738,7 +811,7 @@ static uint8_t addConstantAndCheckLimit(Value value){
 }
 
 static ObjectFunction* endCompiler(){
-	emitReturn(true);
+	emitReturn(true, parser.previousToken);
 	#ifdef DEBUG_PRINT_CODE
 	if (!parser.hadError) disassembleChunk(currentChunk(), currentCompiler->type == FUNCTION_MAIN ? "<script>" : currentCompiler->function->name->string);
 	#endif
@@ -748,12 +821,21 @@ static ObjectFunction* endCompiler(){
 	return function;
 }
 
-static void emitReturn(bool noExpression){
-	if (noExpression){
-		emitByte(OP_NIL);
+static void emitReturn(bool noExpression, Token previousToken){
+	ObjectFunction* function = currentCompiler->function;
+	if (function->type == METHOD_INIT){
+		if (noExpression){
+			emitBytes(OP_GET_LOCAL, 0);
+		} else{
+			if(!(previousToken.length == 4 && (strncmp(previousToken.start, "this", 4) == 0)))
+				 errorAtPreviousToken("Cannot return anything except for `this` inside the init method");
+		}
+	} else{
+		if (noExpression){
+			emitByte(OP_NIL);
+		}
 	}
 	emitByte(OP_RETURN);
-
 }
 // Error handling functions
 

@@ -41,6 +41,8 @@ typedef enum {
 	OP_CLASS,
 	OP_GET_PROPERTY,
 	OP_SET_PROPERTY,
+	OP_METHOD,
+	OP_FAST_METHOD_CALL,
 } OPCode;
 
 // Struct

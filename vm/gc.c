@@ -44,6 +44,9 @@ void markObjects(){
 }
 
 void markRoots(){
+	// mark "init" string from vm
+	markObject((Object*) vm.init);
+
 	// mark the global variables first
 	markHashTable(&vm.globals);
 
@@ -107,6 +110,14 @@ void markCallFrame(){
 	}
 }
 
+void addTableToGCQueue(Table* table){
+	for (int i=0; i< table->capacity; i++){
+		Entry entry = table->entries[i];
+		addObject((Object*) entry.key);
+		addObject(AS_OBJ(entry.value));
+	}
+}
+
 void addChildObjectsToGCQueue(Object* object){
 	
 	switch(object->objectType){
@@ -148,18 +159,21 @@ void addChildObjectsToGCQueue(Object* object){
 			{
 				ObjectClass* objClass = (ObjectClass*) object;
 				addObject((Object*) objClass->name);
+				addTableToGCQueue(objClass->methods);	
 			}
 			break;
 		case OBJECT_INSTANCE:
 			{
 				ObjectInstance* objInstance = (ObjectInstance*) object;
 				addObject((Object*) objInstance->Class);
-				for (int i=0; i< objInstance->fields->capacity; i++){
-					Entry entry = objInstance->fields->entries[i];
-					addObject((Object*) entry.key);
-					addObject(AS_OBJ(entry.value));
-				}
-				
+				addTableToGCQueue(objInstance->fields);	
+			}
+			break;
+		case OBJECT_BOUND_METHOD:
+			{
+				ObjectBoundMethod* boundMethod = (ObjectBoundMethod*) object;
+				addObject((Object*)boundMethod->closure);
+				addObject((Object*)boundMethod->instance);
 			}
 			break;
 		case OBJECT_STRING:
