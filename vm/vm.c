@@ -362,7 +362,7 @@ InterpreterResult runVM(){
 						}
 
 					} else{
-						runtimeError("Can only access fields of instance objects");
+						runtimeError("Cannot access properties of a non-instance");
 						return RUNTIME_ERROR;
 					}
 				}
@@ -400,7 +400,7 @@ InterpreterResult runVM(){
 					Value instance = peek(nargs);
 
 					if (instance.type != TYPE_OBJ || (AS_OBJ(instance))->objectType != OBJECT_INSTANCE){
-						runtimeError("Can only access methods of instance objects");
+						runtimeError("Cannot access properties of a non-instance");
 						return RUNTIME_ERROR;
 					}else{
 						ObjectInstance* instanceObj = AS_INSTANCE_OBJ(instance);
