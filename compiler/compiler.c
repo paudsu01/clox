@@ -680,7 +680,9 @@ static void parseDot(bool canAssign){
 		parseExpression();
 		emitBytes(OP_SET_PROPERTY, index);
 	} else if (matchToken(TOKEN_LEFT_PAREN)){
-		int nargs = parseArguments();
+		int nargs = 0;
+		if (!checkToken(TOKEN_RIGHT_PAREN))
+			nargs = parseArguments();
 		consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function call");
 		// OP_FAST_METHOD_CALL methodNameIndex args
 		// using this instruction, we don't need to create boundMethod during runtime since it is slower and not necessary for simple cases like this as we know where the instance wil be on the stack

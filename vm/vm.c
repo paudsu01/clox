@@ -308,56 +308,7 @@ InterpreterResult runVM(){
 					uint8_t nargs = READ_BYTE();
 					Value funcVal = peek(nargs);
 
-					if (callNoErrors(nargs, funcVal)){
-						switch (AS_OBJ(funcVal)->objectType){
-							case OBJECT_NATIVE_FUNCTION:
-							{
-								ObjectNativeFunction* nativeFn = AS_NATIVE_FUNCTION_OBJ(peek(nargs));
-								bool success = nativeFn->nativeFunction();
-								if (!success) {
-									return RUNTIME_ERROR;
-								} 
-								Value nativeValue = pop();
-								vm.stackpointer -= (nargs +1);
-								push(nativeValue);
-							}
-								break;
-							case OBJECT_CLOSURE:
-							{
-								ObjectClosure* objClosure = AS_CLOSURE_OBJ(funcVal);
-
-								setupFrameForClosureCall(objClosure, &frame, nargs);
-							}
-								break;
-							case OBJECT_CLASS:
-							{
-								ObjectInstance* instance = makeInstanceObject(AS_CLASS_OBJ(funcVal));
-
-								// Call the init function if any
-								*(vm.stackpointer - 1 - nargs) = OBJECT(instance);
-								if (tableHas((AS_CLASS_OBJ(funcVal))->methods, vm.init)){
-									ObjectClosure* initClosure = AS_CLOSURE_OBJ(tableGet((AS_CLASS_OBJ(funcVal))->methods, vm.init));
-									setupFrameForClosureCall(initClosure, &frame, nargs);
-								}
-							}
-								break;
-							case OBJECT_BOUND_METHOD:
-							{
-								ObjectBoundMethod* boundMethod = AS_BOUND_METHOD_OBJ(funcVal);
-								*(vm.stackpointer - nargs - 1) = OBJECT(boundMethod->instance);
-								ObjectClosure* objClosure = boundMethod->closure;
-
-								setupFrameForClosureCall(objClosure, &frame, nargs);
-							}
-								break;
-							//Unreachable since every ObjectFunction object is wrapped around ObjectClosure
-							case OBJECT_FUNCTION:
-								break;
-							default:
-								break;
-						}
-					} else return RUNTIME_ERROR;
-
+					if (!call(funcVal, nargs, &frame)) return RUNTIME_ERROR;
 				}
 				break;
 
@@ -441,7 +392,37 @@ InterpreterResult runVM(){
 				break;
 
 			case OP_FAST_METHOD_CALL:
-				//TODO
+				{
+					// The stack will have the arguments on the top
+					// below them should be the instance object
+					ObjectString* methodName = (AS_STRING_OBJ(READ_CONSTANT()));
+					uint8_t nargs = READ_BYTE();
+					Value instance = peek(nargs);
+
+					if (instance.type != TYPE_OBJ || (AS_OBJ(instance))->objectType != OBJECT_INSTANCE){
+						runtimeError("Can only access methods of instance objects");
+						return RUNTIME_ERROR;
+					}else{
+						ObjectInstance* instanceObj = AS_INSTANCE_OBJ(instance);
+
+						// Fields take priority first
+						if (tableHas(instanceObj->fields, methodName)){
+							Value value = tableGet(instanceObj->fields, methodName);
+							*(vm.stackpointer - nargs - 1) = value;
+
+							if (!call(value, nargs, &frame)) return RUNTIME_ERROR;
+
+						// Methods if there is no such field with that name
+						} else if (tableHas(instanceObj->Class->methods, methodName)){
+							ObjectClosure* objClosure = AS_CLOSURE_OBJ(tableGet(instanceObj->Class->methods, methodName));
+							setupFrameForClosureCall(objClosure, &frame, nargs);
+						} else {
+
+							runtimeError("Undefined property %s for instance", methodName->string);
+							return RUNTIME_ERROR;
+						}
+					}
+				}
 				break;
 
 			default:
@@ -565,6 +546,60 @@ void runtimeError(char* format, ...){
 	}
 
 	resetStack();
+}
+
+bool call(Value funcVal, int nargs, CallFrame** frame){
+
+	if (callNoErrors(nargs, funcVal)){
+		switch (AS_OBJ(funcVal)->objectType){
+			case OBJECT_NATIVE_FUNCTION:
+			{
+				ObjectNativeFunction* nativeFn = AS_NATIVE_FUNCTION_OBJ(peek(nargs));
+				bool success = nativeFn->nativeFunction();
+				if (!success) {
+					return RUNTIME_ERROR;
+				} 
+				Value nativeValue = pop();
+				vm.stackpointer -= (nargs +1);
+				push(nativeValue);
+			}
+				break;
+			case OBJECT_CLOSURE:
+			{
+				ObjectClosure* objClosure = AS_CLOSURE_OBJ(funcVal);
+
+				setupFrameForClosureCall(objClosure, frame, nargs);
+			}
+				break;
+			case OBJECT_CLASS:
+			{
+				ObjectInstance* instance = makeInstanceObject(AS_CLASS_OBJ(funcVal));
+
+				// Call the init function if any
+				*(vm.stackpointer - 1 - nargs) = OBJECT(instance);
+				if (tableHas((AS_CLASS_OBJ(funcVal))->methods, vm.init)){
+					ObjectClosure* initClosure = AS_CLOSURE_OBJ(tableGet((AS_CLASS_OBJ(funcVal))->methods, vm.init));
+					setupFrameForClosureCall(initClosure, frame, nargs);
+				}
+			}
+				break;
+			case OBJECT_BOUND_METHOD:
+			{
+				ObjectBoundMethod* boundMethod = AS_BOUND_METHOD_OBJ(funcVal);
+				*(vm.stackpointer - nargs - 1) = OBJECT(boundMethod->instance);
+				ObjectClosure* objClosure = boundMethod->closure;
+
+				setupFrameForClosureCall(objClosure, frame, nargs);
+			}
+				break;
+			//Unreachable since every ObjectFunction object is wrapped around ObjectClosure
+			case OBJECT_FUNCTION:
+				break;
+			default:
+				break;
+		}
+	} else return false;
+	return true;
 }
 
 bool callNoErrors(int nargs, Value funcVal){

@@ -64,6 +64,7 @@ bool numberNativeFunction();
 
 void runtimeError(char*,...);
 bool callNoErrors(int, Value);
+bool call(Value, int, CallFrame**);
 
 void push(Value);
 Value pop();

@@ -2,7 +2,7 @@
 #include "disassembler.h"
 #include "../vm/vm.h"
 
-static void handleConstantInstruction(Chunk*,int);
+static void handleConstantInstruction(Chunk*,int,bool);
 static void handleByteInstruction(Chunk*,int);
 static void handleJumpInstruction(uint8_t, Chunk*,int);
 static int handleClosureUpvalues(Chunk*,int,int);
@@ -31,22 +31,22 @@ int disassembleInstruction(Chunk* chunk, int index){
 
 		case OP_CONSTANT:
 			printf("OP_CONSTANT\t");
-			handleConstantInstruction(chunk, ++index);
+			handleConstantInstruction(chunk, ++index, true);
 			break;
 
 		case OP_DEFINE_GLOBAL:
 			printf("OP_DEFINE_GLOBAL\t");
-			handleConstantInstruction(chunk, ++index);
+			handleConstantInstruction(chunk, ++index, true);
 			break;
 
 		case OP_GET_GLOBAL:
 			printf("OP_GET_GLOBAL\t");
-			handleConstantInstruction(chunk, ++index);
+			handleConstantInstruction(chunk, ++index, true);
 			break;
 
 		case OP_SET_GLOBAL:
 			printf("OP_SET_GLOBAL\t");
-			handleConstantInstruction(chunk, ++index);
+			handleConstantInstruction(chunk, ++index, true);
 			break;
 
 		case OP_GET_LOCAL:
@@ -150,7 +150,7 @@ int disassembleInstruction(Chunk* chunk, int index){
 		case OP_CLOSURE:
 			{
 				printf("OP_CLOSURE\n|\t");
-				handleConstantInstruction(chunk, ++index);
+				handleConstantInstruction(chunk, ++index, true);
 				Value value = *(((chunk->constants).values) + *((chunk->code)+index));
 				index = handleClosureUpvalues(chunk, ++index, (AS_FUNCTION_OBJ(value))->upvaluesCount);
 			}
@@ -167,22 +167,22 @@ int disassembleInstruction(Chunk* chunk, int index){
 
 		case OP_CLASS:
 			printf("OP_CLASS\t");
-			handleConstantInstruction(chunk, ++index);
+			handleConstantInstruction(chunk, ++index, true);
 			break;
 
 		case OP_GET_PROPERTY:
 			printf("OP_GET_PROPERTY\t");
-			handleConstantInstruction(chunk, ++index);
+			handleConstantInstruction(chunk, ++index, true);
 			break;
 
 		case OP_SET_PROPERTY:
 			printf("OP_SET_PROPERTY\t");
-			handleConstantInstruction(chunk, ++index);
+			handleConstantInstruction(chunk, ++index, true);
 			break;
 
 		case OP_FAST_METHOD_CALL:
 			printf("OP_FAST_METHOD_CALL\t");
-			handleConstantInstruction(chunk, ++index);
+			handleConstantInstruction(chunk, ++index, false);
 			handleByteInstruction(chunk, ++index);
 			break;
 
@@ -205,11 +205,11 @@ void disassembleVMStack(){
 	printf("\t]\n");
 }
 
-static void handleConstantInstruction(Chunk* chunk, int index){
+static void handleConstantInstruction(Chunk* chunk, int index, bool newLine){
 	uint8_t offset = *((chunk->code)+index);
 	Value value = *(((chunk->constants).values) + offset);
 	printValue(value);
-	printf("\n");
+	if (newLine) printf("\n");
 }
 
 static void handleByteInstruction(Chunk* chunk, int index){
