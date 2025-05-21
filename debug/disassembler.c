@@ -186,6 +186,9 @@ int disassembleInstruction(Chunk* chunk, int index){
 			handleByteInstruction(chunk, ++index);
 			break;
 
+		case OP_INHERIT_SUPERCLASS:
+			printf("OP_INHERIT_SUPERCLASS\n");
+			break;
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;

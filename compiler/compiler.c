@@ -273,6 +273,7 @@ static void parseFuncDeclaration(){
 
 static void parseClassDeclaration(){
 	consumeToken(TOKEN_IDENTIFIER, "Expect class name");
+	Token classToken = parser.previousToken;
 	uint8_t index;
 
 	// Add name LoxString object to the constant table no matter what( even if it is in local context )
@@ -294,6 +295,19 @@ static void parseClassDeclaration(){
 
 	// push the class object on the top again since we will need it to bind the methods to the class
 	parseIdentifier(false);
+	if (matchToken(TOKEN_LESS)){
+		consumeToken(TOKEN_IDENTIFIER, "Expect superclass name");
+		// push the superclass object on the top of the stack
+		parseIdentifier(false);
+
+		if (parser.previousToken.length == classToken.length 
+				&& strncmp(parser.previousToken.start, classToken.start, parser.previousToken.length) == 0)
+			errorAtPreviousToken("A class cannot inherit from itself");
+
+		emitByte(OP_INHERIT_SUPERCLASS);
+		//pop the superclass from the stack afterwards
+		emitByte(OP_POP);
+	}
 
 	consumeToken(TOKEN_LEFT_BRACE, "Expect class body");
 	// parse the method declarations
