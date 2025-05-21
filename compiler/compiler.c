@@ -289,6 +289,7 @@ static void parseClassDeclaration(){
 	// Define a new compiling class
 	CompilingClass newCompilingClass;
 	newCompilingClass.parent = currentCompilingClass;
+	newCompilingClass.hasSuperClass = false;
 	currentCompilingClass = &newCompilingClass;
 
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
@@ -296,7 +297,9 @@ static void parseClassDeclaration(){
 	// push the class object on the top again since we will need it to bind the methods to the class
 	parseIdentifier(false);
 	if (matchToken(TOKEN_LESS)){
+		newCompilingClass.hasSuperClass = true;
 		consumeToken(TOKEN_IDENTIFIER, "Expect superclass name");
+
 		// push the superclass object on the top of the stack
 		parseIdentifier(false);
 

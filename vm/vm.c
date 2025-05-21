@@ -425,6 +425,25 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_INHERIT_SUPERCLASS:
+				{
+					Value superclassValue = peek(0);
+					if (!(IS_CLASS(superclassValue))){
+						runtimeError("Cannot inherit since it is not a class");
+						return RUNTIME_ERROR;
+					}
+
+					ObjectClass* superclass = AS_CLASS_OBJ(superclassValue);
+					ObjectClass* class_ = AS_CLASS_OBJ(peek(1));
+
+					for (int i=0; i < superclass->methods->capacity; i++){
+						Entry entry = superclass->methods->entries[i];
+						if (entry.key != NULL){
+							tableAdd(class_->methods, entry.key, entry.value);
+						}
+					}
+				}
+				break;
 			default:
 				return COMPILE_ERROR;
 		}
