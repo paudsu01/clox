@@ -129,6 +129,7 @@ ObjectClass* makeClassObject(ObjectString* name){
 	Table* methods = reallocate(NULL, 0, sizeof(Table));
 	initTable(methods);
 	class->methods = methods;
+	class->superclass = NULL;
 
 	return class;
 }
