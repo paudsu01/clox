@@ -346,19 +346,7 @@ InterpreterResult runVM(){
 							push(tableGet(instance->fields, property));
 						} else{
 							ObjectClass* class = instance->Class;
-							if (tableHas(class->methods, property)){
-								// Create a bound method to capture the `instance` which is on the stack and bind the closure object with it
-								ObjectClosure* closure= AS_CLOSURE_OBJ(tableGet(class->methods, property));
-								ObjectBoundMethod* boundMethod = makeBoundMethodObject(closure, instance);
-
-								// pop instance object
-								pop();
-								push(OBJECT(boundMethod));
-							} else{
-								runtimeError("Undefined property %s", property->string);
-								return RUNTIME_ERROR;
-							}
-
+							if (findAndBindMethod(instance, class, property) == RUNTIME_ERROR) return RUNTIME_ERROR;
 						}
 
 					} else{
@@ -452,6 +440,13 @@ InterpreterResult runVM(){
 					*(vm.stackpointer - 2) = superclass;
 				}
 				break;
+			case OP_GET_SUPER:
+				{
+					Value methodName = READ_CONSTANT();
+					ObjectInstance* instance = AS_INSTANCE_OBJ((*(frame->stackStart)));
+					if (findAndBindMethod(instance, AS_CLASS_OBJ(peek(0)), AS_STRING_OBJ(methodName)) == RUNTIME_ERROR) return RUNTIME_ERROR;
+				}
+				break;
 			default:
 				return COMPILE_ERROR;
 		}
@@ -478,6 +473,22 @@ void freeVM(){
 }
 
 // Helper functions
+int findAndBindMethod(ObjectInstance* instance, ObjectClass* class, ObjectString* property){
+	if (tableHas(class->methods, property)){
+		// Create a bound method to capture the `instance` which is on the stack and bind the closure object with it
+		ObjectClosure* closure= AS_CLOSURE_OBJ(tableGet(class->methods, property));
+		ObjectBoundMethod* boundMethod = makeBoundMethodObject(closure, instance);
+
+		// pop instance or superclass object
+		pop();
+		push(OBJECT(boundMethod));
+	} else{
+		runtimeError("Undefined property %s", property->string);
+		return RUNTIME_ERROR;
+	}
+	return NO_ERROR;
+}
+
 bool trueOrFalse(Value val){
 	if (val.type == TYPE_NUM) return true;
 	else if (val.type == TYPE_OBJ) return true;
