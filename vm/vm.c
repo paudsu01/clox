@@ -429,7 +429,7 @@ InterpreterResult runVM(){
 				{
 					Value superclassValue = peek(0);
 					if (!(IS_CLASS(superclassValue))){
-						runtimeError("Cannot inherit since it is not a class");
+						runtimeError("Cannot inherit since the superclass it is not of type class");
 						return RUNTIME_ERROR;
 					}
 
@@ -442,6 +442,14 @@ InterpreterResult runVM(){
 							tableAdd(class_->methods, entry.key, entry.value);
 						}
 					}
+				}
+				break;
+			// swap superclass and class value on stack
+			case OP_STACK_SWAP:
+				{
+					Value superclass = pop();
+					push(peek(0));
+					*(vm.stackpointer - 2) = superclass;
 				}
 				break;
 			default:
