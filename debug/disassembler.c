@@ -192,6 +192,9 @@ int disassembleInstruction(Chunk* chunk, int index){
 		case OP_STACK_SWAP:
 			printf("OP_STACK_SWAP\n");
 			break;
+		case OP_GET_SUPER:
+			printf("OP_GET_SUPER\n");
+			break;
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;

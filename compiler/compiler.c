@@ -78,6 +78,7 @@ static void parseUnary(bool);
 static void parseNumber(bool);
 static void parseString(bool);
 static void parseLiteral(bool);
+static void parseSuper(bool);
 static void parseThis(bool);
 static void parseIdentifier(bool);
 static void parseGrouping(bool);
@@ -118,7 +119,7 @@ ParseRow rules[] = {
   [TOKEN_OR]            = {NULL,	     parseOr,	   PREC_OR},	
   [TOKEN_PRINT]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_RETURN]        = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_SUPER]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_SUPER]         = {parseSuper,	     NULL,	   PREC_NONE},	
   [TOKEN_THIS]          = {parseThis,	     NULL,	   PREC_NONE},	
   [TOKEN_TRUE]          = {parseLiteral,     NULL,	   PREC_NONE},	
   [TOKEN_VAR]           = {NULL,	     NULL,	   PREC_NONE},	
@@ -582,6 +583,21 @@ static void parseThis(bool canAssign){
 		errorAtPreviousToken("Cannot use `this` keyword outside of a class");
 
 	emitBytes(OP_GET_LOCAL, 0);
+}
+
+static void parseSuper(bool canAssign){
+	if (currentCompilingClass == NULL)
+		errorAtPreviousToken("Cannot use `super` keyword outside of a class");
+	// push superclass on the top
+	parseIdentifier(false);
+
+	consumeToken(TOKEN_DOT, "'.' expected after `super` keyword");
+	consumeToken(TOKEN_IDENTIFIER, "identifier expected after '.' with super keyword");
+
+	ObjectString* string = makeStringObject(parser.previousToken.start, parser.previousToken.length);
+	int index = getValueConstantIndex(OBJECT(string));
+	if (index == -1) index = addConstantAndCheckLimit(OBJECT(string));
+	emitBytes(OP_GET_SUPER, index);
 }
 
 static void parseIdentifier(bool canAssign){
