@@ -21,6 +21,7 @@ static void advanceToken();
 // Helper functions
 static int parseGlobalVariable();
 static void handleLocalVariable();
+static void addSuperAsLocalVariable();
 static void beginScope();
 static void endScope();
 static Chunk* currentChunk();
@@ -297,8 +298,13 @@ static void parseClassDeclaration(){
 	// push the class object on the top again since we will need it to bind the methods to the class
 	parseIdentifier(false);
 	if (matchToken(TOKEN_LESS)){
+
 		newCompilingClass.hasSuperClass = true;
 		consumeToken(TOKEN_IDENTIFIER, "Expect superclass name");
+
+		// begin scope to include `super` as a hidden local variable so that class methods can capture `super` as a upvalue
+		beginScope();
+		addSuperAsLocalVariable();
 
 		// push the superclass object on the top of the stack
 		parseIdentifier(false);
@@ -308,9 +314,11 @@ static void parseClassDeclaration(){
 			errorAtPreviousToken("A class cannot inherit from itself");
 
 		emitByte(OP_INHERIT_SUPERCLASS);
-		//pop the superclass from the stack afterwards
-		emitByte(OP_POP);
+
+		//swap the superclass and the class values so that class value stays on top
+		emitByte(OP_STACK_SWAP);
 	}
+	
 
 	consumeToken(TOKEN_LEFT_BRACE, "Expect class body");
 	// parse the method declarations
@@ -329,6 +337,10 @@ static void parseClassDeclaration(){
 
 	// pop class object from top once method binding is done
 	emitByte(OP_POP);
+	// remove upvalue if class has a superclass
+	if (newCompilingClass.hasSuperClass){
+		endScope();
+	}
 
 	// Change the current compiling class back to the parent
 	currentCompilingClass = newCompilingClass.parent;
@@ -915,6 +927,11 @@ static void synchronize(){
 static int parseGlobalVariable(){
 	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
 	return addConstantAndCheckLimit(value);
+}
+
+static void addSuperAsLocalVariable(){
+	Token superToken = (Token) {.type = TOKEN_IDENTIFIER, .length = 5, .line=-1, .start="super"};
+	currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = currentCompiler->currentScopeDepth, .name=superToken, .isCaptured = false};
 }
 
 static void handleLocalVariable(){
