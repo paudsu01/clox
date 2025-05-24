@@ -440,6 +440,7 @@ InterpreterResult runVM(){
 					*(vm.stackpointer - 2) = superclass;
 				}
 				break;
+
 			case OP_GET_SUPER:
 				{
 					Value methodName = READ_CONSTANT();
@@ -447,6 +448,36 @@ InterpreterResult runVM(){
 					if (findAndBindMethod(instance, AS_CLASS_OBJ(peek(0)), AS_STRING_OBJ(methodName)) == RUNTIME_ERROR) return RUNTIME_ERROR;
 				}
 				break;
+
+			case OP_FAST_SUPER_METHOD_CALL:
+				{
+					// The stack will have the arguments on the top
+					// below them should be the superclass object
+					// instance `this` will be on start of call frame stack pointer
+					ObjectString* methodName = (AS_STRING_OBJ(READ_CONSTANT()));
+					uint8_t nargs = READ_BYTE();
+					ObjectClass* superclass = AS_CLASS_OBJ(peek(nargs));
+
+					if (tableHas(superclass->methods, methodName)){
+
+						Value closureVal = tableGet(superclass->methods, methodName);
+						ObjectClosure* objClosure = AS_CLOSURE_OBJ(closureVal);
+
+						if (callNoErrors(nargs, closureVal))
+						{
+							// Change the superclass object with the instance
+							*(vm.stackpointer - nargs - 1) = *(frame->stackStart);
+							setupFrameForClosureCall(objClosure, &frame, nargs);
+						}
+
+					} else {
+
+						runtimeError("Undefined property %s for instance", methodName->string);
+						return RUNTIME_ERROR;
+					}
+				}
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}
