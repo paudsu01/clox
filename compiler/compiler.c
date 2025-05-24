@@ -364,7 +364,7 @@ static int parseParameters(){
 	}
 	while (matchToken(TOKEN_COMMA));
 	
-	consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function parameters");
+	consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of parameters");
 	return nargs;
 }
 
@@ -588,6 +588,9 @@ static void parseThis(bool canAssign){
 static void parseSuper(bool canAssign){
 	if (currentCompilingClass == NULL)
 		errorAtPreviousToken("Cannot use `super` keyword outside of a class");
+
+	if (!currentCompilingClass->hasSuperClass) 
+		errorAtPreviousToken("Cannot use `super` keyword inside this class without a superclass");
 	// push superclass on the top
 	parseIdentifier(false);
 
@@ -597,7 +600,21 @@ static void parseSuper(bool canAssign){
 	ObjectString* string = makeStringObject(parser.previousToken.start, parser.previousToken.length);
 	int index = getValueConstantIndex(OBJECT(string));
 	if (index == -1) index = addConstantAndCheckLimit(OBJECT(string));
-	emitBytes(OP_GET_SUPER, index);
+	if (matchToken(TOKEN_LEFT_PAREN)){
+		int nargs = 0;
+		if (!checkToken(TOKEN_RIGHT_PAREN))
+			nargs = parseArguments();
+		consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of method call");
+
+		// same idea as OP_FAST_METHOD_CALL for OP_FAST_SUPER_METHOD_CALL
+		// The only difference being we will have superclass on top of stack instead of the instance object
+		// OP_FAST_SUPER_METHOD_CALL methodNameIndex args
+		emitBytes(OP_FAST_SUPER_METHOD_CALL, index);
+		emitByte(nargs);
+	}
+	else {
+		emitBytes(OP_GET_SUPER, index);
+	}
 }
 
 static void parseIdentifier(bool canAssign){

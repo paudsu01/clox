@@ -189,12 +189,22 @@ int disassembleInstruction(Chunk* chunk, int index){
 		case OP_INHERIT_SUPERCLASS:
 			printf("OP_INHERIT_SUPERCLASS\n");
 			break;
+
 		case OP_STACK_SWAP:
 			printf("OP_STACK_SWAP\n");
 			break;
+
 		case OP_GET_SUPER:
 			printf("OP_GET_SUPER\n");
+			handleConstantInstruction(chunk, ++index, true);
 			break;
+
+		case OP_FAST_SUPER_METHOD_CALL:
+			printf("OP_FAST_SUPER_METHOD_CALL\n");
+			handleConstantInstruction(chunk, ++index, false);
+			handleByteInstruction(chunk, ++index);
+			break;
+
 		default:
 			printf("UNKNOWN_OP_CODE\n");
 			break;

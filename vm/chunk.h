@@ -46,6 +46,7 @@ typedef enum {
 	OP_INHERIT_SUPERCLASS,
 	OP_STACK_SWAP,
 	OP_GET_SUPER,
+	OP_FAST_SUPER_METHOD_CALL,
 } OPCode;
 
 // Struct
