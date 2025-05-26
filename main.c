@@ -34,7 +34,7 @@ int main(int nargs, char * args[]){
 static void runREPL(){
 	char line[1024];
 
-	printf("Clox interpreter v3.0.0. Type `exit` to quit the interpreter.\n");
+	printf("Clox interpreter v3.1.0. Type `exit` to quit the interpreter.\n");
 	while (true){
 		short index=0;
 		printf(">> ");
