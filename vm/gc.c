@@ -159,6 +159,7 @@ void addChildObjectsToGCQueue(Object* object){
 			{
 				ObjectClass* objClass = (ObjectClass*) object;
 				addObject((Object*) objClass->name);
+				addObject((Object*) objClass->superclass);
 				addTableToGCQueue(objClass->methods);	
 			}
 			break;

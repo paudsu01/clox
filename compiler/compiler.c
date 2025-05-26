@@ -21,6 +21,7 @@ static void advanceToken();
 // Helper functions
 static int parseGlobalVariable();
 static void handleLocalVariable();
+static void addSuperAsLocalVariable();
 static void beginScope();
 static void endScope();
 static Chunk* currentChunk();
@@ -77,6 +78,7 @@ static void parseUnary(bool);
 static void parseNumber(bool);
 static void parseString(bool);
 static void parseLiteral(bool);
+static void parseSuper(bool);
 static void parseThis(bool);
 static void parseIdentifier(bool);
 static void parseGrouping(bool);
@@ -117,7 +119,7 @@ ParseRow rules[] = {
   [TOKEN_OR]            = {NULL,	     parseOr,	   PREC_OR},	
   [TOKEN_PRINT]         = {NULL,	     NULL,	   PREC_NONE},	
   [TOKEN_RETURN]        = {NULL,	     NULL,	   PREC_NONE},	
-  [TOKEN_SUPER]         = {NULL,	     NULL,	   PREC_NONE},	
+  [TOKEN_SUPER]         = {parseSuper,	     NULL,	   PREC_NONE},	
   [TOKEN_THIS]          = {parseThis,	     NULL,	   PREC_NONE},	
   [TOKEN_TRUE]          = {parseLiteral,     NULL,	   PREC_NONE},	
   [TOKEN_VAR]           = {NULL,	     NULL,	   PREC_NONE},	
@@ -273,6 +275,7 @@ static void parseFuncDeclaration(){
 
 static void parseClassDeclaration(){
 	consumeToken(TOKEN_IDENTIFIER, "Expect class name");
+	Token classToken = parser.previousToken;
 	uint8_t index;
 
 	// Add name LoxString object to the constant table no matter what( even if it is in local context )
@@ -288,12 +291,35 @@ static void parseClassDeclaration(){
 	// Define a new compiling class
 	CompilingClass newCompilingClass;
 	newCompilingClass.parent = currentCompilingClass;
+	newCompilingClass.hasSuperClass = false;
 	currentCompilingClass = &newCompilingClass;
 
 	if (currentCompiler->currentScopeDepth == 0) emitBytes(OP_DEFINE_GLOBAL, index);
 
 	// push the class object on the top again since we will need it to bind the methods to the class
 	parseIdentifier(false);
+	if (matchToken(TOKEN_LESS)){
+
+		newCompilingClass.hasSuperClass = true;
+		consumeToken(TOKEN_IDENTIFIER, "Expect superclass name");
+
+		// begin scope to include `super` as a hidden local variable so that class methods can capture `super` as a upvalue
+		beginScope();
+		addSuperAsLocalVariable();
+
+		// push the superclass object on the top of the stack
+		parseIdentifier(false);
+
+		if (parser.previousToken.length == classToken.length 
+				&& strncmp(parser.previousToken.start, classToken.start, parser.previousToken.length) == 0)
+			errorAtPreviousToken("A class cannot inherit from itself");
+
+		emitByte(OP_INHERIT_SUPERCLASS);
+
+		//swap the superclass and the class values so that class value stays on top
+		emitByte(OP_STACK_SWAP);
+	}
+	
 
 	consumeToken(TOKEN_LEFT_BRACE, "Expect class body");
 	// parse the method declarations
@@ -312,6 +338,10 @@ static void parseClassDeclaration(){
 
 	// pop class object from top once method binding is done
 	emitByte(OP_POP);
+	// remove upvalue if class has a superclass
+	if (newCompilingClass.hasSuperClass){
+		endScope();
+	}
 
 	// Change the current compiling class back to the parent
 	currentCompilingClass = newCompilingClass.parent;
@@ -334,7 +364,7 @@ static int parseParameters(){
 	}
 	while (matchToken(TOKEN_COMMA));
 	
-	consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of function parameters");
+	consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of parameters");
 	return nargs;
 }
 
@@ -553,6 +583,38 @@ static void parseThis(bool canAssign){
 		errorAtPreviousToken("Cannot use `this` keyword outside of a class");
 
 	emitBytes(OP_GET_LOCAL, 0);
+}
+
+static void parseSuper(bool canAssign){
+	if (currentCompilingClass == NULL)
+		errorAtPreviousToken("Cannot use `super` keyword outside of a class");
+
+	if (!currentCompilingClass->hasSuperClass) 
+		errorAtPreviousToken("Cannot use `super` keyword inside this class without a superclass");
+	// push superclass on the top
+	parseIdentifier(false);
+
+	consumeToken(TOKEN_DOT, "'.' expected after `super` keyword");
+	consumeToken(TOKEN_IDENTIFIER, "identifier expected after '.' with super keyword");
+
+	ObjectString* string = makeStringObject(parser.previousToken.start, parser.previousToken.length);
+	int index = getValueConstantIndex(OBJECT(string));
+	if (index == -1) index = addConstantAndCheckLimit(OBJECT(string));
+	if (matchToken(TOKEN_LEFT_PAREN)){
+		int nargs = 0;
+		if (!checkToken(TOKEN_RIGHT_PAREN))
+			nargs = parseArguments();
+		consumeToken(TOKEN_RIGHT_PAREN, "')' expected at end of method call");
+
+		// same idea as OP_FAST_METHOD_CALL for OP_FAST_SUPER_METHOD_CALL
+		// The only difference being we will have superclass on top of stack instead of the instance object
+		// OP_FAST_SUPER_METHOD_CALL methodNameIndex args
+		emitBytes(OP_FAST_SUPER_METHOD_CALL, index);
+		emitByte(nargs);
+	}
+	else {
+		emitBytes(OP_GET_SUPER, index);
+	}
 }
 
 static void parseIdentifier(bool canAssign){
@@ -898,6 +960,11 @@ static void synchronize(){
 static int parseGlobalVariable(){
 	Value value = OBJECT(makeStringObject(parser.previousToken.start, parser.previousToken.length));
 	return addConstantAndCheckLimit(value);
+}
+
+static void addSuperAsLocalVariable(){
+	Token superToken = (Token) {.type = TOKEN_IDENTIFIER, .length = 5, .line=-1, .start="super"};
+	currentCompiler->locals[currentCompiler->currentLocalsCount++] = (Local) {.depth = currentCompiler->currentScopeDepth, .name=superToken, .isCaptured = false};
 }
 
 static void handleLocalVariable(){

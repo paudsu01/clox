@@ -41,6 +41,7 @@ typedef struct Compiler{
 
 typedef struct CompilingClass{
 	struct CompilingClass* parent;
+	bool hasSuperClass;
 } CompilingClass;
 
 void initCompiler(Compiler*, FunctionType);

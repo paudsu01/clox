@@ -68,10 +68,11 @@ typedef struct{
 	NativeFunction nativeFunction;
 } ObjectNativeFunction;
 
-typedef struct{
+typedef struct ObjectClass{
 	Object object;
 	ObjectString* name;
 	struct Table* methods;
+	struct ObjectClass* superclass;
 } ObjectClass;
 
 typedef struct{

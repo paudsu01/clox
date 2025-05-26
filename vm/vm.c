@@ -346,19 +346,7 @@ InterpreterResult runVM(){
 							push(tableGet(instance->fields, property));
 						} else{
 							ObjectClass* class = instance->Class;
-							if (tableHas(class->methods, property)){
-								// Create a bound method to capture the `instance` which is on the stack and bind the closure object with it
-								ObjectClosure* closure= AS_CLOSURE_OBJ(tableGet(class->methods, property));
-								ObjectBoundMethod* boundMethod = makeBoundMethodObject(closure, instance);
-
-								// pop instance object
-								pop();
-								push(OBJECT(boundMethod));
-							} else{
-								runtimeError("Undefined property %s", property->string);
-								return RUNTIME_ERROR;
-							}
-
+							if (findAndBindMethod(instance, class, property) == RUNTIME_ERROR) return RUNTIME_ERROR;
 						}
 
 					} else{
@@ -425,6 +413,71 @@ InterpreterResult runVM(){
 				}
 				break;
 
+			case OP_INHERIT_SUPERCLASS:
+				{
+					Value superclassValue = peek(0);
+					if (!(IS_CLASS(superclassValue))){
+						runtimeError("Cannot inherit since the superclass it is not of type class");
+						return RUNTIME_ERROR;
+					}
+
+					ObjectClass* superclass = AS_CLASS_OBJ(superclassValue);
+					ObjectClass* class_ = AS_CLASS_OBJ(peek(1));
+
+					for (int i=0; i < superclass->methods->capacity; i++){
+						Entry entry = superclass->methods->entries[i];
+						if (entry.key != NULL){
+							tableAdd(class_->methods, entry.key, entry.value);
+						}
+					}
+				}
+				break;
+			// swap superclass and class value on stack
+			case OP_STACK_SWAP:
+				{
+					Value superclass = pop();
+					push(peek(0));
+					*(vm.stackpointer - 2) = superclass;
+				}
+				break;
+
+			case OP_GET_SUPER:
+				{
+					Value methodName = READ_CONSTANT();
+					ObjectInstance* instance = AS_INSTANCE_OBJ((*(frame->stackStart)));
+					if (findAndBindMethod(instance, AS_CLASS_OBJ(peek(0)), AS_STRING_OBJ(methodName)) == RUNTIME_ERROR) return RUNTIME_ERROR;
+				}
+				break;
+
+			case OP_FAST_SUPER_METHOD_CALL:
+				{
+					// The stack will have the arguments on the top
+					// below them should be the superclass object
+					// instance `this` will be on start of call frame stack pointer
+					ObjectString* methodName = (AS_STRING_OBJ(READ_CONSTANT()));
+					uint8_t nargs = READ_BYTE();
+					ObjectClass* superclass = AS_CLASS_OBJ(peek(nargs));
+
+					if (tableHas(superclass->methods, methodName)){
+
+						Value closureVal = tableGet(superclass->methods, methodName);
+						ObjectClosure* objClosure = AS_CLOSURE_OBJ(closureVal);
+
+						if (callNoErrors(nargs, closureVal))
+						{
+							// Change the superclass object with the instance
+							*(vm.stackpointer - nargs - 1) = *(frame->stackStart);
+							setupFrameForClosureCall(objClosure, &frame, nargs);
+						}
+
+					} else {
+
+						runtimeError("Undefined property %s for instance", methodName->string);
+						return RUNTIME_ERROR;
+					}
+				}
+				break;
+
 			default:
 				return COMPILE_ERROR;
 		}
@@ -451,6 +504,22 @@ void freeVM(){
 }
 
 // Helper functions
+int findAndBindMethod(ObjectInstance* instance, ObjectClass* class, ObjectString* property){
+	if (tableHas(class->methods, property)){
+		// Create a bound method to capture the `instance` which is on the stack and bind the closure object with it
+		ObjectClosure* closure= AS_CLOSURE_OBJ(tableGet(class->methods, property));
+		ObjectBoundMethod* boundMethod = makeBoundMethodObject(closure, instance);
+
+		// pop instance or superclass object
+		pop();
+		push(OBJECT(boundMethod));
+	} else{
+		runtimeError("Undefined property %s", property->string);
+		return RUNTIME_ERROR;
+	}
+	return NO_ERROR;
+}
+
 bool trueOrFalse(Value val){
 	if (val.type == TYPE_NUM) return true;
 	else if (val.type == TYPE_OBJ) return true;
