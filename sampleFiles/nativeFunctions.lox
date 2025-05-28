@@ -1,0 +1,10 @@
+// The following program takes number(input) from the user and adds current time to it
+
+print "Hi, what's your name?";
+
+// "input" native function used
+var x = input();
+
+// "clock" native function used
+print "Hey " + x + ", the clock() built-in function returns: ";
+print clock();

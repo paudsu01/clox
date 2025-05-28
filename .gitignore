@@ -5,3 +5,4 @@
 !main.out
 prattParsing/
 main.out.dSYM/
+!sampleFiles/**.lox

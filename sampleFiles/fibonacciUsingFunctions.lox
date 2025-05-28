@@ -1,0 +1,22 @@
+// Print the first 20 fibonacci numbers using recursion with functions
+// Run from base directory using "java -jar Lox.jar sampleFiles/fibonacciUsingWhileLoop.lox"
+
+fun fibonacci(num){
+
+	// Base case 1
+	if (num <= 0) {
+		return 0;
+
+	// Base case 2
+	} else if (num == 1){
+		return 1;
+
+	// Recursive case
+	} else {
+		return fibonacci(num-1) + fibonacci(num-2);
+	}
+}
+
+for (var i=0; i<20; i=i+1){
+	print fibonacci(i);
+}

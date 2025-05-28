@@ -38,7 +38,7 @@ cd path/to/directory/of/main.out
   alias clox="$(pwd)/main.out"
   ```
 
-  > You can now just type use `clox` to use the compiler for the remaining terminal session.
+  > You can now just type `clox` to use the compiler for the remaining terminal session.
 
 * If you want to add a permanent alias, you should add the alias command with an absolute path for `main.out` to your shell config file like the `~/.bashrc` file if you use bash, `~/.zshrc` file if you use zsh.
 

@@ -1,0 +1,29 @@
+class Student{
+
+	init(name, nickname){
+		this.name = name;
+		this.nickname = nickname;
+	}
+
+	toString(){
+		return "<Student: " + this.name + ", " + this.nickname + " >";
+	}
+}
+
+fun show_info(){
+
+	print supreme.toString();
+	print anna.toString();
+}
+
+var anna = Student("Anna", "Banana");
+var supreme = Student("Supreme", "Legend");
+
+show_info();
+
+anna.nickname = "dumbass";
+
+print "";
+print "Updating nickname for Anna";
+
+show_info();

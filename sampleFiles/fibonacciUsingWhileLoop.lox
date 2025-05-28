@@ -1,0 +1,20 @@
+// Print the first 20 fibonacci numbers using while loop
+// Run from base directory using "java -jar Lox.jar sampleFiles/fibonacciUsingWhileLoop.lox"
+
+var previousNumber = 0;
+var currentNumber = 1;
+var i = 0;
+print previousNumber;
+
+while (i < 20){
+
+	print currentNumber;
+
+	var temp = currentNumber;
+	currentNumber = currentNumber + previousNumber;
+	previousNumber = temp;
+
+	i = i + 1;
+}
+ 
+
